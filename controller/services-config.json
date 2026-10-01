@@ -1,0 +1,26 @@
+[
+  {
+    "id": "philosophy",
+    "name": "창업주 경영철학 선행학습 포털 (Portal)",
+    "cwd": "c:\\실습\\DEV\\경영철학서",
+    "command": "node",
+    "args": "server/index.js",
+    "port": 5001
+  },
+  {
+    "id": "flight",
+    "name": "항공 스케쥴 추적기 (Flight Tracker)",
+    "cwd": "c:\\실습\\DEV\\FlightTracker",
+    "command": "python",
+    "args": "app.py",
+    "port": 5000
+  },
+  {
+    "id": "custom_aefl95i08",
+    "name": "국내 항공기 실시간 운항현황",
+    "cwd": "C:\\실습\\DEV\\비행기",
+    "command": "node",
+    "args": "",
+    "port": 8000
+  }
+]
