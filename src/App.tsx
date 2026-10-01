@@ -14,6 +14,7 @@ function App() {
   const [isOffline, setIsOffline] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [showGuide, setShowGuide] = useState(true);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   // Toast Helper
   const addToast = (type: 'success' | 'error' | 'info', message: string) => {
@@ -75,7 +76,20 @@ function App() {
                 <span>📖 학습자 화면</span>
               </button>
               <button
-                onClick={() => setActiveTab('admin')}
+                onClick={() => {
+                  if (activeTab === 'admin') return;
+                  if (!isAdminAuthenticated) {
+                    const pwd = window.prompt('관리자 비밀번호를 입력해주세요:');
+                    if (pwd === 'hrd1905') {
+                      setIsAdminAuthenticated(true);
+                      setActiveTab('admin');
+                    } else if (pwd !== null) {
+                      alert('비밀번호가 일치하지 않습니다.');
+                    }
+                  } else {
+                    setActiveTab('admin');
+                  }
+                }}
                 className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative ${
                   activeTab === 'admin'
                     ? 'bg-[#C5A059] text-[#2c2722] shadow'
