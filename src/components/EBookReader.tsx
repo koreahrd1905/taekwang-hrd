@@ -60,8 +60,8 @@ export const EBookReader: React.FC = () => {
           </div>
           {/* PDF Download */}
           <a
-            href="/ebook.pdf"
-            download="ebook.pdf"
+            href="/eBook.pdf"
+            download="eBook.pdf"
             className="flex items-center gap-2 px-3.5 py-1.5 bg-[#C5A059] hover:bg-[#A68345] text-[#2c2722] border border-[#C5A059] rounded-lg text-sm sm:text-[13.5px] font-bold transition-all shadow-md active:scale-95"
             title="추모록 도서 PDF 다운받기"
           >
