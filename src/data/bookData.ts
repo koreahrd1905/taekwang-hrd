@@ -1,6 +1,7 @@
 export interface BookChapter {
   id: number;
   chapterNumber: string;
+  tabTitle: string;
   title: string;
   subtitle: string;
   content: string;
@@ -10,6 +11,7 @@ export const bookChapters: BookChapter[] = [
   {
     id: 1,
     chapterNumber: "제1장",
+    tabTitle: "사업보국",
     title: "사업보국 (事業報國)",
     subtitle: "기업을 일으켜 국가와 사회에 이바지하다",
     content: `태광산업 창업주 일주(一洲) 이임용 선대회장의 기업가 정신을 관통하는 첫 번째 핵심 철학은 바로 '사업보국(事業報國)'이었습니다. 사업보국이란 단순히 영리를 추구하는 집단을 넘어, 기업이 국가 경제 발전에 이바지하고 사회적 책임을 다해야 한다는 신념입니다.
@@ -23,6 +25,7 @@ export const bookChapters: BookChapter[] = [
   {
     id: 2,
     chapterNumber: "제2장",
+    tabTitle: "인재제일",
     title: "인재제일 (人才第一)",
     subtitle: "사람이 곧 기업의 기둥이요 전부이다",
     content: `기계는 돈으로 살 수 있지만, 사람의 마음은 돈으로 살 수 없다. 일주 선대회장은 기업의 영속성을 결정짓는 가장 강력한 자원은 다름 아닌 '사람'이라고 단언했습니다. 이것이 태광그룹의 '인재제일(人才第一)' 철학입니다.
@@ -36,6 +39,7 @@ export const bookChapters: BookChapter[] = [
   {
     id: 3,
     chapterNumber: "제3장",
+    tabTitle: "도전경영",
     title: "도전경영 (挑戰經營)",
     subtitle: "해보지 않고서는 결코 불가능을 말하지 말라",
     content: `태광그룹의 역사는 무에서 유를 창조해 온 거대한 도전의 기록입니다. 이임용 선대회장은 안락한 현실에 안주하기보다 끊임없이 새로운 영토를 개척했던 도전가였습니다.
@@ -49,6 +53,7 @@ export const bookChapters: BookChapter[] = [
   {
     id: 4,
     chapterNumber: "제4장",
+    tabTitle: "정직과 신용",
     title: "정직과 신용 (正直과 信用)",
     subtitle: "위기를 버텨내는 가장 단단한 뿌리",
     content: `이임용 선대회장이 평생을 두고 지켜온 가장 무거운 삶의 원칙은 '정직(正直)'과 '신용(信用)'이었습니다. 그는 정직하지 않은 이익은 사상누각과 같아 한순간에 무너지지만, 정직과 신용으로 맺어진 관계는 모진 불황의 풍파 속에서도 기업을 지탱해 주는 가장 굳건한 뿌리가 된다고 가르쳤습니다.
@@ -62,7 +67,8 @@ export const bookChapters: BookChapter[] = [
   {
     id: 5,
     chapterNumber: "제5장",
-    title: "백년기업의 길 (상생과 나눔)",
+    tabTitle: "상생과 나눔",
+    title: "상생과 나눔 (백년기업의 길)",
     subtitle: "사회와 더불어 영원히 흐르는 강물이 되다",
     content: `기업의 궁극적인 존재 목적은 무엇인가? 이임용 선대회장은 그 해답을 '상생과 나눔'에서 찾았습니다. 그는 기업이 거둔 이익은 기업의 소유물이기 전에 공동체로부터 잠시 빌린 것이므로, 반드시 사회로 환원되어 상생의 선순환을 만들어야 백 년을 넘어 영속하는 기업이 될 수 있다고 믿었습니다.
 

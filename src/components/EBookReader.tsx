@@ -83,7 +83,7 @@ export const EBookReader: React.FC = () => {
                 : 'text-gray-400 hover:text-white hover:bg-[#463f37]'
             }`}
           >
-            {ch.id}. {ch.title.split(' ')[0]}
+            {ch.id}. {ch.tabTitle || ch.title}
           </button>
         ))}
       </div>

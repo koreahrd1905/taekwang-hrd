@@ -41,7 +41,7 @@ function App() {
 
   return (
     <div className="min-h-screen lg:h-screen bg-[#2c2722] text-[#F8FAFC] font-sans flex flex-col lg:overflow-hidden transition-all duration-300">
-      
+
       {/* Global Header (Full Width, Compact & Premium) */}
       <header className="bg-[#36302a] border-b border-[#C5A059]/20 sticky top-0 z-40 shadow-md flex-shrink-0">
         <div className="w-full px-4 sm:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -66,11 +66,10 @@ function App() {
             <nav className="flex items-center bg-[#2c2722] p-1 rounded-xl border border-[#C5A059]/15 shadow-inner">
               <button
                 onClick={() => setActiveTab('learner')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${
-                  activeTab === 'learner'
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${activeTab === 'learner'
                     ? 'bg-[#C5A059] text-[#2c2722] shadow'
                     : 'text-gray-400 hover:text-white hover:bg-[#36302a]'
-                }`}
+                  }`}
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 <span>📖 학습자 화면</span>
@@ -90,11 +89,10 @@ function App() {
                     setActiveTab('admin');
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative ${
-                  activeTab === 'admin'
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative ${activeTab === 'admin'
                     ? 'bg-[#C5A059] text-[#2c2722] shadow'
                     : 'text-gray-400 hover:text-white hover:bg-[#36302a]'
-                }`}
+                  }`}
               >
                 <ShieldAlert className="w-3.5 h-3.5" />
                 <span>🛡️ 관리자 모니터링</span>
@@ -111,11 +109,11 @@ function App() {
 
       {/* Main Content Area (Full Width, Viewport Fit) */}
       <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-3 flex flex-col">
-        
+
         {/* Learner View: 2-Column Full Screen Bento Layout */}
         {activeTab === 'learner' && (
           <div className="flex-1 min-h-0 flex flex-col gap-2.5 animate-fade-in">
-            
+
             {/* Slim Smart Guide Strip */}
             {showGuide && (
               <div className="bg-[#463f37]/95 border border-[#C5A059]/30 rounded-xl px-4 sm:px-5 py-2.5 text-left flex items-center justify-between gap-3 shadow-lg glass-panel flex-shrink-0 transition-all">
@@ -149,7 +147,7 @@ function App() {
 
             {/* Left & Right Full-Height Board Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 items-stretch flex-1 min-h-0 w-full">
-              
+
               {/* Left Board: E-Book Reader */}
               <div className="h-[620px] lg:h-full min-h-0 flex flex-col">
                 <EBookReader />

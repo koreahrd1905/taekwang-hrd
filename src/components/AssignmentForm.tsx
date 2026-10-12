@@ -50,7 +50,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
   const isFormValid = () => {
     if (!name.trim() || !department.trim()) return false;
-    
+
     // Both questions of the selected card must be filled
     return selectedCard.questions.every(q => {
       const text = answers[q.id] || '';
@@ -61,7 +61,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
   // Submit Handler
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!isFormValid()) {
       addToast('error', '성명, 부서 및 모든 성찰 문항을 작성해 주세요.');
       return;
@@ -112,8 +112,8 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
   };
 
   return (
-    <form 
-      onSubmit={handleSubmit} 
+    <form
+      onSubmit={handleSubmit}
       className="flex flex-col h-full rounded-2xl overflow-hidden glass-panel border border-[#C5A059]/20 shadow-2xl text-left"
     >
       {/* Board Header */}
@@ -124,7 +124,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
         </div>
         <div className="flex items-center gap-1.5 bg-[#2c2722] px-3 py-1.5 rounded-lg border border-[#C5A059]/20">
           <span className="text-xs text-gray-300">선택 유형:</span>
-          <span 
+          <span
             className="text-xs sm:text-sm font-bold font-mono px-1.5 py-0.5 rounded"
             style={{ color: selectedCard.themeColor }}
           >
@@ -135,7 +135,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
 
       {/* Board Scrollable Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 md:p-5 flex flex-col gap-4 custom-scrollbar">
-        
+
         {/* Step 1. 인적 사항 등록 (성명, 부서, 휴대전화, 이메일) */}
         <div className="bg-[#36302a]/70 border border-[#C5A059]/15 rounded-xl p-3.5 sm:p-4 flex flex-col gap-3 shadow-md">
           <div className="flex items-center justify-between border-b border-[#C5A059]/10 pb-2">
@@ -147,7 +147,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
               휴대전화로 교육 안내 및 문자메시지가 발송됩니다
             </span>
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* 성명 */}
             <div className="flex flex-col gap-1.5">
@@ -229,17 +229,16 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
                   type="button"
                   key={card.id}
                   onClick={() => setSelectedCardIdx(idx)}
-                  className={`p-2 sm:p-3 rounded-xl border text-center transition-all duration-200 flex flex-col items-center justify-between gap-1.5 min-h-[80px] sm:min-h-[90px] hover:scale-[1.02] cursor-pointer ${
-                    isSelected
+                  className={`p-2 sm:p-3 rounded-xl border text-center transition-all duration-200 flex flex-col items-center justify-between gap-1.5 min-h-[80px] sm:min-h-[90px] hover:scale-[1.02] cursor-pointer ${isSelected
                       ? 'bg-gradient-to-b from-[#463f37] to-[#2c2722] text-white ring-1'
                       : 'bg-[#2c2722]/70 border-gray-700/50 text-gray-300 hover:text-white hover:bg-[#2c2722]'
-                  }`}
+                    }`}
                   style={{
                     borderColor: isSelected ? card.themeColor : undefined,
                     boxShadow: isSelected ? `0 0 14px ${card.themeColor}50` : undefined
                   }}
                 >
-                  <span 
+                  <span
                     className="font-mono text-xs sm:text-sm px-2 py-0.5 rounded font-bold"
                     style={{
                       backgroundColor: isSelected ? card.themeColor : '#2c2722',
@@ -286,7 +285,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
                     <span>{q.question}</span>
                   </div>
                   <p className="text-xs sm:text-sm text-gray-300 italic px-1">💡 {q.description}</p>
-                  
+
                   {/* Clean White reading/writing box with Dark text for usability */}
                   <div className="relative">
                     <textarea
@@ -297,7 +296,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       required
                       className="bg-[#F8FAFC] text-[#1E293B] placeholder-slate-400 text-sm sm:text-base rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#C5A059] focus:border-[#C5A059] block w-full p-3.5 sm:p-4 outline-none resize-none transition-all leading-relaxed shadow-inner"
                     />
-                    
+
                     {/* Status Indicator inside textarea corner */}
                     <div className="absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/95 px-2.5 py-1 rounded-full shadow border border-gray-200 pointer-events-none">
                       <span className="font-mono text-xs text-slate-700 font-semibold">
@@ -310,7 +309,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
                       )}
                     </div>
                   </div>
-                  
+
                   {/* Validation text helper */}
                   <div className="flex justify-end px-1">
                     {isTargetMet ? (
@@ -332,11 +331,10 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({
         <button
           type="submit"
           disabled={isSubmitting || !isFormValid()}
-          className={`w-full py-3.5 px-6 rounded-xl font-serif font-bold text-sm sm:text-base tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all duration-200 ${
-            isFormValid() && !isSubmitting
+          className={`w-full py-3.5 px-6 rounded-xl font-serif font-bold text-sm sm:text-base tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all duration-200 ${isFormValid() && !isSubmitting
               ? 'bg-[#C5A059] hover:bg-[#A68345] text-[#2c2722] hover:shadow-[#C5A059]/30 active:scale-[0.99] cursor-pointer'
               : 'bg-gray-700/80 text-gray-400 cursor-not-allowed border border-gray-700'
-          }`}
+            }`}
         >
           <Send className="w-4 h-4" />
           {isSubmitting ? '사전과제 제출 중...' : `${selectedCard.title} 사전과제 제출 완료하기`}

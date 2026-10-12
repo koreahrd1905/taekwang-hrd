@@ -146,13 +146,13 @@ app.get('/api/submissions', async (req, res) => {
 // 2. Add new submission
 app.post('/api/submissions', async (req, res) => {
   const newSubmission = req.body;
-  
+
   if (!newSubmission || !newSubmission.name || !newSubmission.department) {
     return res.status(400).json({ error: 'Name and department are required.' });
   }
 
   const currentData = await readSubmissions();
-  
+
   // Prevent duplicate ID insertion if client sent it
   const isDuplicate = currentData.some(item => item.id === newSubmission.id);
   if (isDuplicate) {
@@ -160,7 +160,7 @@ app.post('/api/submissions', async (req, res) => {
   }
 
   currentData.unshift(newSubmission); // Add to the top of list
-  
+
   const success = await writeSubmissions(currentData);
   if (success) {
     res.status(201).json(newSubmission);
@@ -171,7 +171,7 @@ app.post('/api/submissions', async (req, res) => {
     if (newSubmission.phone) {
       const targetPhone = newSubmission.phone.replace(/[^0-9]/g, '');
       const cleanSender = (activeSenderPhone || '').replace(/[^0-9]/g, '');
-      const isKeyConfigured = 
+      const isKeyConfigured =
         Boolean(activeApiKey) && activeApiKey !== 'YOUR_SOLAPI_API_KEY' &&
         Boolean(activeApiSecret) && activeApiSecret !== 'YOUR_SOLAPI_API_SECRET' &&
         Boolean(cleanSender) && cleanSender !== '01000000000';
@@ -194,9 +194,9 @@ app.post('/api/submissions', async (req, res) => {
           },
           body: JSON.stringify(payload)
         })
-        .then(r => r.json())
-        .then(data => console.log('[Auto SMS] 자동 접수 안내 문자 발송 결과:', data))
-        .catch(err => console.error('[Auto SMS] 자동 접수 안내 문자 발송 오류:', err));
+          .then(r => r.json())
+          .then(data => console.log('[Auto SMS] 자동 접수 안내 문자 발송 결과:', data))
+          .catch(err => console.error('[Auto SMS] 자동 접수 안내 문자 발송 오류:', err));
       }
     }
   } else {
@@ -208,9 +208,9 @@ app.post('/api/submissions', async (req, res) => {
 app.delete('/api/submissions/:id', async (req, res) => {
   const idToDelete = req.params.id;
   const currentData = await readSubmissions();
-  
+
   const filteredData = currentData.filter(item => item.id !== idToDelete);
-  
+
   if (currentData.length === filteredData.length) {
     return res.status(404).json({ error: 'Submission not found.' });
   }
@@ -274,7 +274,7 @@ app.post('/api/sms/config', (req, res) => {
     }, null, 2), 'utf-8');
 
     console.log('[Solapi SMS] 새로운 SMS 연동 정보가 성공적으로 저장되었습니다. (운영 모드 활성화)');
-    
+
     res.json({
       success: true,
       message: 'Solapi 설정이 성공적으로 저장되었습니다. 이제 실제 운영 모드로 발송됩니다.',
@@ -432,7 +432,7 @@ const DIST_PATH = path.join(__dirname, '../dist');
 if (fs.existsSync(DIST_PATH)) {
   app.use(express.static(DIST_PATH));
   console.log('Serving production frontend static files from:', DIST_PATH);
-  
+
   app.get('*', (req, res) => {
     res.sendFile(path.join(DIST_PATH, 'index.html'));
   });

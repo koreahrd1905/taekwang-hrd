@@ -4,16 +4,16 @@ import { apiService } from '../api';
 import { generateSubmissionPDF } from '../utils/pdfGenerator';
 import { exportSubmissionsToCSV } from '../utils/csvExporter';
 import { SMSModal } from './SMSModal';
-import { 
-  Users, 
-  Briefcase, 
-  FileText, 
-  Clock, 
-  Search, 
-  Trash2, 
-  Download, 
-  Database, 
-  Wifi, 
+import {
+  Users,
+  Briefcase,
+  FileText,
+  Clock,
+  Search,
+  Trash2,
+  Download,
+  Database,
+  Wifi,
   WifiOff,
   RefreshCw,
   MessageSquare,
@@ -48,34 +48,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Statistics Calculations
   const totalSubmissions = submissions.length;
-  
+
   const uniqueDepartments = Array.from(
     new Set(submissions.map(s => s.department.trim()))
   ).filter(Boolean).length;
 
   const averageChars = totalSubmissions > 0
     ? Math.round(
-        submissions.reduce((acc, sub) => {
-          const charSum = Object.values(sub.answers).reduce((sum, ans) => sum + ans.length, 0);
-          return acc + charSum;
-        }, 0) / totalSubmissions
-      )
+      submissions.reduce((acc, sub) => {
+        const charSum = Object.values(sub.answers).reduce((sum, ans) => sum + ans.length, 0);
+        return acc + charSum;
+      }, 0) / totalSubmissions
+    )
     : 0;
 
   const latestTime = totalSubmissions > 0
     ? submissions.reduce((latest, current) => {
-        return new Date(current.submittedAt) > new Date(latest.submittedAt) ? current : latest;
-      }).submittedAt
+      return new Date(current.submittedAt) > new Date(latest.submittedAt) ? current : latest;
+    }).submittedAt
     : '-';
 
   // Search & Filter Submissions
   const filteredSubmissions = submissions.filter(sub => {
-    const matchesSearch = 
+    const matchesSearch =
       sub.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       sub.department.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = 
-      typeFilter === 'ALL' || 
+
+    const matchesFilter =
+      typeFilter === 'ALL' ||
       (sub.cardType && sub.cardType.includes(typeFilter));
 
     return matchesSearch && matchesFilter;
@@ -100,7 +100,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleClearAll = async () => {
     if (!confirm('경고: 모든 제출 내역이 초기화되며 복구할 수 없습니다. 계속하시겠습니까?')) return;
-    
+
     try {
       await apiService.clearAllSubmissions();
       addToast('success', '모든 제출 데이터가 성공적으로 초기화되었습니다.');
@@ -133,7 +133,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   return (
     <div className="flex flex-col gap-6 text-left">
-      
+
       {/* Network Status & Refresh Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#463f37]/50 border border-[#C5A059]/15 rounded-xl px-5 py-3 glass-panel">
         <div className="flex items-center gap-2 text-xs">
@@ -293,9 +293,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <tr
                       key={sub.id}
                       onClick={() => setSelectedSubId(sub.id)}
-                      className={`cursor-pointer transition-colors border-gray-800/40 hover:bg-[#463f37]/35 ${
-                        isSelected ? 'bg-[#C5A059]/10 hover:bg-[#C5A059]/15' : 'odd:bg-[#2c2722]/10 even:bg-[#2c2722]/30'
-                      }`}
+                      className={`cursor-pointer transition-colors border-gray-800/40 hover:bg-[#463f37]/35 ${isSelected ? 'bg-[#C5A059]/10 hover:bg-[#C5A059]/15' : 'odd:bg-[#2c2722]/10 even:bg-[#2c2722]/30'
+                        }`}
                     >
                       <td className="px-5 py-4 font-bold text-white whitespace-nowrap">{sub.name}</td>
                       <td className="px-5 py-4">{sub.department}</td>

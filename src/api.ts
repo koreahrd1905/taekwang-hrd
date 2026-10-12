@@ -38,14 +38,14 @@ export const apiService = {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });
-      
+
       if (!response.ok) throw new Error('Server response error');
-      
+
       const serverData = await response.json();
-      
+
       // Keep local storage in sync with server data
       setLocalStorageData(serverData);
-      
+
       return { data: serverData, isLocalStorageOnly: false };
     } catch (error) {
       console.warn('Backend server is offline, falling back to LocalStorage.', error);
@@ -62,12 +62,12 @@ export const apiService = {
   ): Promise<APIResponse<Submission>> {
     // Generate timestamps & identifiers
     const id = 'sub_' + Math.random().toString(36).substr(2, 9);
-    
+
     // Formatting date as YYYY-MM-DD HH:MM:SS
     const now = new Date();
     const pad = (n: number) => n.toString().padStart(2, '0');
     const submittedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    
+
     // Formatting filename: 부서_성명_유형.pdf
     const cleanDept = submission.department.replace(/\s+/g, '');
     const cleanName = submission.name.replace(/\s+/g, '');
@@ -91,7 +91,7 @@ export const apiService = {
       if (!response.ok) throw new Error('Server response error');
 
       const serverData = await response.json();
-      
+
       // Update local storage
       const localList = getLocalStorageData();
       localList.unshift(serverData);
@@ -100,7 +100,7 @@ export const apiService = {
       return { data: serverData, isLocalStorageOnly: false };
     } catch (error) {
       console.warn('Backend server offline during submission. Saving to LocalStorage.', error);
-      
+
       const localList = getLocalStorageData();
       localList.unshift(fullSubmission);
       setLocalStorageData(localList);
@@ -127,7 +127,7 @@ export const apiService = {
       return { data: true, isLocalStorageOnly: false };
     } catch (error) {
       console.warn('Backend server offline during delete. Updating LocalStorage.', error);
-      
+
       const localList = getLocalStorageData().filter(item => item.id !== id);
       setLocalStorageData(localList);
 
