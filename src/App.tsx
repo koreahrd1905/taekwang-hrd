@@ -10,6 +10,7 @@ import { TAEKWANG_LOGO_BASE64 } from './assets/logos';
 
 function App() {
   const [activeTab, setActiveTab] = useState<'learner' | 'admin'>('learner');
+  const [learnerSubTab, setLearnerSubTab] = useState<'ebook' | 'assignment'>('ebook');
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isOffline, setIsOffline] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -44,35 +45,35 @@ function App() {
 
       {/* Global Header (Full Width, Compact & Premium) */}
       <header className="bg-[#36302a] border-b border-[#C5A059]/20 sticky top-0 z-40 shadow-md flex-shrink-0">
-        <div className="w-full px-4 sm:px-6 py-2.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="h-8 sm:h-[38px] flex items-center justify-center flex-shrink-0">
+        <div className="w-full px-3 sm:px-6 py-2 sm:py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="h-7 sm:h-[38px] flex items-center justify-center flex-shrink-0">
               <img src={TAEKWANG_LOGO_BASE64} alt="태광그룹" className="h-full w-auto object-contain" />
             </div>
-            <div className="text-left">
-              <div className="flex items-center gap-2">
-                <h1 className="font-serif font-bold text-base sm:text-lg text-[#C5A059] tracking-wide leading-tight">
+            <div className="text-left min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h1 className="font-serif font-bold text-sm sm:text-lg text-[#C5A059] tracking-wide leading-tight truncate">
                   창업주 경영철학 선행학습 플랫폼
                 </h1>
               </div>
-              <p className="text-[10px] sm:text-xs text-gray-400 font-medium line-clamp-1">
-                태광그룹 경영철학 및 핵심가치 내재화 과정 | Pre-Learning Portal
+              <p className="text-[10px] sm:text-xs text-gray-400 font-medium truncate">
+                태광그룹 경영철학 및 핵심가치 내재화 과정
               </p>
             </div>
           </div>
 
           {/* Navigation & Controls */}
-          <div className="flex items-center gap-3 justify-end">
-            <nav className="flex items-center bg-[#2c2722] p-1 rounded-xl border border-[#C5A059]/15 shadow-inner">
+          <div className="flex items-center gap-2 justify-end flex-shrink-0">
+            <nav className="flex items-center bg-[#2c2722] p-1 rounded-xl border border-[#C5A059]/15 shadow-inner w-full sm:w-auto justify-center">
               <button
                 onClick={() => setActiveTab('learner')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 ${activeTab === 'learner'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 active:scale-95 ${activeTab === 'learner'
                     ? 'bg-[#C5A059] text-[#2c2722] shadow'
                     : 'text-gray-400 hover:text-white hover:bg-[#36302a]'
                   }`}
               >
-                <BookOpen className="w-3.5 h-3.5" />
-                <span>📖 학습자 화면</span>
+                <BookOpen className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>학습자 화면</span>
               </button>
               <button
                 onClick={() => {
@@ -89,15 +90,15 @@ function App() {
                     setActiveTab('admin');
                   }
                 }}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative ${activeTab === 'admin'
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 relative active:scale-95 ${activeTab === 'admin'
                     ? 'bg-[#C5A059] text-[#2c2722] shadow'
                     : 'text-gray-400 hover:text-white hover:bg-[#36302a]'
                   }`}
               >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>🛡️ 관리자 모니터링</span>
+                <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>관리자 모니터링</span>
                 {submissions.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 rounded-full bg-red-500 font-mono text-[9px] font-bold text-white ring-1 ring-[#2c2722] animate-pulse">
+                  <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-red-500 font-mono text-[9px] font-bold text-white ring-1 ring-[#2c2722] animate-pulse">
                     {submissions.length}
                   </span>
                 )}
@@ -108,25 +109,25 @@ function App() {
       </header>
 
       {/* Main Content Area (Full Width, Viewport Fit) */}
-      <main className="flex-1 min-h-0 w-full px-3 sm:px-4 lg:px-6 py-3 flex flex-col">
+      <main className="flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-2 sm:py-3 flex flex-col">
 
-        {/* Learner View: 2-Column Full Screen Bento Layout */}
+        {/* Learner View: Responsive Bento Layout */}
         {activeTab === 'learner' && (
-          <div className="flex-1 min-h-0 flex flex-col gap-2.5 animate-fade-in">
+          <div className="flex-1 min-h-0 flex flex-col gap-2 animate-fade-in">
 
             {/* Slim Smart Guide Strip */}
             {showGuide && (
-              <div className="bg-[#463f37]/95 border border-[#C5A059]/30 rounded-xl px-4 sm:px-5 py-2.5 text-left flex items-center justify-between gap-3 shadow-lg glass-panel flex-shrink-0 transition-all">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="text-lg sm:text-xl flex-shrink-0 select-none">💡</span>
-                  <div className="text-sm sm:text-[14.5px] text-gray-200 leading-relaxed font-sans">
-                    <strong className="text-[#C5A059] font-serif font-bold text-sm sm:text-base mr-2">[선행학습 가이드]</strong>
-                    좌측 <strong className="text-white font-medium">E-Book은 요약 내용</strong>입니다. 배포된 <strong className="text-amber-200 font-semibold">&quot;나무는 숲과함께 자라야한다&quot;</strong>를 정독한 후, 우측 <strong className="text-white font-medium">성찰과제 카드(1~5형)</strong>를 선택하여 성찰문을 작성 및 제출해 주십시오.
+              <div className="bg-[#463f37]/95 border border-[#C5A059]/30 rounded-xl px-3 sm:px-5 py-2 sm:py-2.5 text-left flex items-start sm:items-center justify-between gap-2 sm:gap-3 shadow-lg glass-panel flex-shrink-0 transition-all">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0">
+                  <span className="text-base sm:text-xl flex-shrink-0 select-none mt-0.5 sm:mt-0">💡</span>
+                  <div className="text-xs sm:text-[14px] text-gray-200 leading-relaxed font-sans">
+                    <strong className="text-[#C5A059] font-serif font-bold text-xs sm:text-base mr-1.5">[선행학습 가이드]</strong>
+                    <span className="hidden sm:inline">좌측 </span><strong className="text-white font-medium">E-Book 요약</strong>을 정독한 후, <strong className="text-white font-medium">성찰과제(1~5형)</strong>를 작성 및 제출해 주십시오.
                   </div>
                 </div>
                 <button
                   onClick={() => setShowGuide(false)}
-                  className="text-gray-400 hover:text-gray-200 text-sm px-2 py-1 rounded hover:bg-[#2c2722]/60 flex-shrink-0 transition-colors"
+                  className="text-gray-400 hover:text-gray-200 text-xs sm:text-sm px-1.5 py-1 rounded hover:bg-[#2c2722]/60 flex-shrink-0 transition-colors"
                   title="가이드 접기"
                 >
                   ✕
@@ -145,17 +146,51 @@ function App() {
               </div>
             )}
 
+            {/* Mobile / Tablet Sub Tab Switcher (Visible only below lg breakpoint) */}
+            <div className="lg:hidden flex items-center bg-[#36302a] p-1 rounded-xl border border-[#C5A059]/30 shadow-md flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => setLearnerSubTab('ebook')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                  learnerSubTab === 'ebook'
+                    ? 'bg-[#C5A059] text-[#2c2722] shadow-md font-extrabold'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <span>📖 1. 추모록 E-Book</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setLearnerSubTab('assignment')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all active:scale-95 ${
+                  learnerSubTab === 'assignment'
+                    ? 'bg-[#C5A059] text-[#2c2722] shadow-md font-extrabold'
+                    : 'text-gray-300 hover:text-white'
+                }`}
+              >
+                <span>📝 2. 선행 성찰과제</span>
+              </button>
+            </div>
+
             {/* Left & Right Full-Height Board Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-5 items-stretch flex-1 min-h-0 w-full">
+            <div className="flex-1 min-h-0 w-full lg:grid lg:grid-cols-2 lg:gap-5 items-stretch">
 
               {/* Left Board: E-Book Reader */}
-              <div className="h-[620px] lg:h-full min-h-0 flex flex-col">
-                <EBookReader />
+              <div className={`h-[calc(100dvh-170px)] sm:h-[calc(100dvh-180px)] lg:h-full min-h-0 flex-col ${
+                learnerSubTab === 'ebook' ? 'flex' : 'hidden lg:flex'
+              }`}>
+                <EBookReader onSwitchToAssignment={() => setLearnerSubTab('assignment')} />
               </div>
 
               {/* Right Board: Assignment Form */}
-              <div className="h-[620px] lg:h-full min-h-0 flex flex-col">
-                <AssignmentForm onSubmissionSuccess={fetchData} addToast={addToast} />
+              <div className={`h-[calc(100dvh-170px)] sm:h-[calc(100dvh-180px)] lg:h-full min-h-0 flex-col ${
+                learnerSubTab === 'assignment' ? 'flex' : 'hidden lg:flex'
+              }`}>
+                <AssignmentForm 
+                  onSubmissionSuccess={fetchData} 
+                  addToast={addToast} 
+                  onSwitchToEBook={() => setLearnerSubTab('ebook')}
+                />
               </div>
 
             </div>
@@ -164,7 +199,7 @@ function App() {
 
         {/* Admin View: Full Width Scrollable Dashboard */}
         {activeTab === 'admin' && (
-          <div className="flex-1 min-h-0 overflow-y-auto animate-fade-in pr-1">
+          <div className="flex-1 min-h-0 overflow-y-auto animate-fade-in pr-0.5 custom-scrollbar touch-pan-y">
             <AdminDashboard
               submissions={submissions}
               isOffline={isOffline}
@@ -179,10 +214,10 @@ function App() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} setToasts={setToasts} />
 
-      {/* Slim Global Footer */}
-      <footer className="bg-[#2c2722] border-t border-[#36302a] py-1.5 px-4 text-center text-[10px] text-gray-500 font-mono flex-shrink-0 flex items-center justify-between">
-        <span className="text-left">&copy; 2026 TAEKWANG GROUP. All Rights Reserved.</span>
-        <span className="hidden sm:inline">창업주 경영철학 선행학습 시스템 v1.1</span>
+      {/* Slim Global Footer with Safe-PB */}
+      <footer className="bg-[#2c2722] border-t border-[#36302a] py-1.5 px-3 sm:px-4 text-center text-[10px] text-gray-500 font-mono flex-shrink-0 flex items-center justify-between safe-pb">
+        <span className="text-left truncate">&copy; 2026 TAEKWANG GROUP. All Rights Reserved.</span>
+        <span className="hidden sm:inline flex-shrink-0">창업주 경영철학 선행학습 시스템 v1.2</span>
       </footer>
 
     </div>
@@ -190,3 +225,4 @@ function App() {
 }
 
 export default App;
+

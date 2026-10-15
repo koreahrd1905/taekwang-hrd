@@ -135,7 +135,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     <div className="flex flex-col gap-6 text-left">
 
       {/* Network Status & Refresh Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#463f37]/50 border border-[#C5A059]/15 rounded-xl px-5 py-3 glass-panel">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#463f37]/50 border border-[#C5A059]/15 rounded-xl px-4 sm:px-5 py-3 glass-panel">
         <div className="flex items-center gap-2 text-xs">
           <span className="text-gray-400">시스템 연동 상태:</span>
           {isOffline ? (
@@ -150,7 +150,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
         <button
           onClick={refreshData}
-          className="flex items-center justify-center gap-1 px-3 py-1.5 bg-[#C5A059]/10 text-[#C5A059] border border-[#C5A059]/30 rounded-lg text-xs font-semibold hover:bg-[#C5A059]/20 transition-all"
+          className="flex items-center justify-center gap-1 px-3 py-1.5 bg-[#C5A059]/10 text-[#C5A059] border border-[#C5A059]/30 rounded-lg text-xs font-semibold hover:bg-[#C5A059]/20 active:scale-95 transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>데이터 새로고침</span>
@@ -158,48 +158,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </div>
 
       {/* 4 Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Stat 1: 총 제출자 수 */}
-        <div className="rounded-2xl p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 font-medium">총 제출자 수</span>
-            <span className="text-2xl font-bold text-white font-mono">{totalSubmissions} <span className="text-xs font-sans font-normal text-gray-400">명</span></span>
+        <div className="rounded-2xl p-3.5 sm:p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
+          <div className="flex flex-col gap-0.5 sm:gap-1">
+            <span className="text-[11px] sm:text-xs text-gray-400 font-medium">총 제출자 수</span>
+            <span className="text-xl sm:text-2xl font-bold text-white font-mono">{totalSubmissions} <span className="text-xs font-sans font-normal text-gray-400">명</span></span>
           </div>
-          <div className="p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
-            <Users className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Stat 2: 독립 참가 부서 수 */}
-        <div className="rounded-2xl p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 font-medium">독립 참가 부서 수</span>
-            <span className="text-2xl font-bold text-white font-mono">{uniqueDepartments} <span className="text-xs font-sans font-normal text-gray-400">개</span></span>
+        <div className="rounded-2xl p-3.5 sm:p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
+          <div className="flex flex-col gap-0.5 sm:gap-1">
+            <span className="text-[11px] sm:text-xs text-gray-400 font-medium">독립 참가 부서 수</span>
+            <span className="text-xl sm:text-2xl font-bold text-white font-mono">{uniqueDepartments} <span className="text-xs font-sans font-normal text-gray-400">개</span></span>
           </div>
-          <div className="p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
-            <Briefcase className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
+            <Briefcase className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Stat 3: 인당 평균 글자 수 */}
-        <div className="rounded-2xl p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 font-medium">인당 평균 성찰 글자수</span>
-            <span className="text-2xl font-bold text-white font-mono">{averageChars} <span className="text-xs font-sans font-normal text-gray-400">자</span></span>
+        <div className="rounded-2xl p-3.5 sm:p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
+          <div className="flex flex-col gap-0.5 sm:gap-1">
+            <span className="text-[11px] sm:text-xs text-gray-400 font-medium">인당 평균 글자수</span>
+            <span className="text-xl sm:text-2xl font-bold text-white font-mono">{averageChars} <span className="text-xs font-sans font-normal text-gray-400">자</span></span>
           </div>
-          <div className="p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
-            <FileText className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
+            <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
 
         {/* Stat 4: 최근 제출 시점 */}
-        <div className="rounded-2xl p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs text-gray-400 font-medium">최근 제출 시점</span>
-            <span className="text-sm font-bold text-white truncate max-w-[150px] md:max-w-none">{latestTime}</span>
+        <div className="rounded-2xl p-3.5 sm:p-5 bg-[#463f37] border border-[#C5A059]/10 shadow-xl flex items-center justify-between">
+          <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0">
+            <span className="text-[11px] sm:text-xs text-gray-400 font-medium">최근 제출 시점</span>
+            <span className="text-xs sm:text-sm font-bold text-white truncate max-w-[110px] sm:max-w-none">{latestTime}</span>
           </div>
-          <div className="p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
-            <Clock className="w-6 h-6" />
+          <div className="p-2.5 sm:p-3 rounded-xl bg-[#C5A059]/10 text-[#C5A059]">
+            <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
           </div>
         </div>
       </div>
@@ -207,21 +207,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Main Table Panel */}
       <div className="rounded-2xl glass-panel border border-[#C5A059]/15 shadow-2xl overflow-hidden">
         {/* Panel Header & Filters */}
-        <div className="bg-[#463f37] border-b border-[#C5A059]/15 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="bg-[#463f37] border-b border-[#C5A059]/15 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <Database className="w-5 h-5 text-[#C5A059]" />
-            <h3 className="font-serif text-[#C5A059] font-bold text-md">임직원 과제 수신 대시보드</h3>
+            <Database className="w-5 h-5 text-[#C5A059] flex-shrink-0" />
+            <h3 className="font-serif text-[#C5A059] font-bold text-sm sm:text-md">임직원 과제 수신 대시보드</h3>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2.5 sm:gap-3">
             {/* Search */}
-            <div className="relative">
+            <div className="relative w-full sm:w-auto">
               <input
                 type="text"
                 placeholder="이름, 부서명 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-[#2c2722] text-xs text-gray-200 placeholder-gray-500 rounded-lg pl-8 pr-3 py-2 w-44 focus:ring-1 focus:ring-[#C5A059] focus:outline-none border border-gray-700/50"
+                className="bg-[#2c2722] text-xs text-gray-200 placeholder-gray-500 rounded-lg pl-8 pr-3 py-2 w-full sm:w-44 focus:ring-1 focus:ring-[#C5A059] focus:outline-none border border-gray-700/50"
               />
               <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-500" />
             </div>
@@ -230,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-[#2c2722] text-xs text-gray-200 rounded-lg px-3 py-2 border border-gray-700/50 focus:outline-none cursor-pointer"
+              className="bg-[#2c2722] text-xs text-gray-200 rounded-lg px-3 py-2 border border-gray-700/50 focus:outline-none cursor-pointer w-full sm:w-auto"
             >
               <option value="ALL">전체 유형</option>
               <option value="1형">1형 [사업보국]</option>
@@ -241,33 +241,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </select>
 
             {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <button
                 onClick={() => setIsSMSModalOpen(true)}
-                className="flex items-center gap-1.5 bg-gradient-to-r from-[#C5A059] to-[#d8b56f] hover:from-[#b08d48] hover:to-[#C5A059] text-[#2c2722] text-xs font-bold px-3 py-2 rounded-lg shadow-md hover:shadow-[#C5A059]/20 transition-all cursor-pointer"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-gradient-to-r from-[#C5A059] to-[#d8b56f] hover:from-[#b08d48] hover:to-[#C5A059] text-[#2c2722] text-xs font-bold px-3 py-2 rounded-lg shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="학습자 휴대전화 번호로 문자메시지 발송"
               >
-                <MessageSquare className="w-3.5 h-3.5" /> 문자메시지 발송
+                <MessageSquare className="w-3.5 h-3.5" /> <span>문자메시지 발송</span>
               </button>
               <button
                 onClick={handleCSVExport}
-                className="flex items-center gap-1 bg-[#36302a] hover:bg-[#463f37] border border-[#C5A059]/30 text-[#C5A059] text-xs font-bold px-3 py-2 rounded-lg transition-all cursor-pointer"
+                className="flex items-center justify-center gap-1 bg-[#36302a] hover:bg-[#463f37] border border-[#C5A059]/30 text-[#C5A059] text-xs font-bold px-3 py-2 rounded-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               >
-                <Download className="w-3.5 h-3.5" /> CSV 내보내기
+                <Download className="w-3.5 h-3.5" /> <span>CSV</span>
               </button>
               <button
                 onClick={handleClearAll}
-                className="flex items-center gap-1 bg-red-950/70 border border-red-500/20 text-red-400 hover:bg-red-900/60 text-xs font-bold px-3 py-2 rounded-lg transition-all cursor-pointer"
+                className="flex items-center justify-center gap-1 bg-red-950/70 border border-red-500/20 text-red-400 hover:bg-red-900/60 text-xs font-bold px-3 py-2 rounded-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
               >
-                <Trash2 className="w-3.5 h-3.5" /> 전체 초기화
+                <Trash2 className="w-3.5 h-3.5" /> <span>초기화</span>
               </button>
             </div>
           </div>
         </div>
 
+        {/* Mobile Horizontal Scroll Hint */}
+        <div className="md:hidden px-4 py-2 bg-[#2c2722]/80 border-b border-[#C5A059]/10 text-[11px] text-[#C5A059] flex items-center justify-between">
+          <span>👈 좌우로 밀어서 전체 열 확인 👉</span>
+          <span className="text-gray-400 font-mono">총 {filteredSubmissions.length}건</span>
+        </div>
+
         {/* Table Data */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left text-gray-300">
+        <div className="overflow-x-auto touch-pan-x">
+          <table className="w-full text-sm text-left text-gray-300 min-w-[640px]">
             <thead className="text-xs uppercase bg-[#36302a]/80 text-[#C5A059] border-b border-[#C5A059]/10">
               <tr>
                 <th scope="col" className="px-5 py-3">성명</th>

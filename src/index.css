@@ -2,10 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile Touch & Safe Area Optimization */
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* iOS Safari Input Auto-zoom prevention (Force min 16px font on mobile) */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Safe area padding utilities for iPhone notches and bottom gesture bars */
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-pb {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+}
+
 /* Custom Scrollbar for elegant Dark Brown Theme */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {

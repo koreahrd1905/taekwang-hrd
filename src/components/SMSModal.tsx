@@ -203,36 +203,36 @@ export const SMSModal: React.FC<SMSModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in text-left">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-sm animate-fade-in text-left">
       <div 
-        className="relative w-full max-w-2xl bg-[#2c2722] border border-[#C5A059]/40 rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden text-gray-200"
+        className="relative w-full max-w-2xl bg-[#2c2722] border border-[#C5A059]/40 rounded-2xl shadow-2xl flex flex-col max-h-[94dvh] sm:max-h-[92vh] overflow-hidden text-gray-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="bg-[#36302a] px-5 py-4 border-b border-[#C5A059]/20 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/30">
-              <Phone className="w-5 h-5" />
+        <div className="bg-[#36302a] px-3.5 sm:px-5 py-3 sm:py-4 border-b border-[#C5A059]/20 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+            <div className="p-1.5 sm:p-2 rounded-xl bg-[#C5A059]/15 text-[#C5A059] border border-[#C5A059]/30 flex-shrink-0">
+              <Phone className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h2 className="font-serif text-[#C5A059] font-bold text-base sm:text-lg">
-                문자메시지 발송 <span className="text-xs font-sans font-normal text-gray-400">(CoolSMS / Solapi v4)</span>
+            <div className="min-w-0">
+              <h2 className="font-serif text-[#C5A059] font-bold text-sm sm:text-lg truncate">
+                문자메시지 발송 <span className="text-[10px] sm:text-xs font-sans font-normal text-gray-400">(CoolSMS / Solapi)</span>
               </h2>
-              <p className="text-xs text-gray-400">
+              <p className="text-[11px] sm:text-xs text-gray-400 truncate">
                 학습자 인적사항에 등록된 휴대전화 번호로 안내 문자를 발송합니다.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-all"
+            className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/10 transition-all flex-shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 flex flex-col gap-3.5 sm:gap-4 custom-scrollbar touch-pan-y">
 
           {/* API Key Status Notice Box */}
           <div className="bg-[#1e1b17] border border-[#C5A059]/30 rounded-xl p-3.5 flex flex-col gap-3 text-xs shadow-md">
@@ -514,11 +514,11 @@ export const SMSModal: React.FC<SMSModalProps> = ({
             </div>
 
             <textarea
-              rows={6}
+              rows={5}
               value={messageText}
               onChange={(e) => setMessageText(e.target.value)}
               placeholder="학습자들에게 전송할 문자메시지 내용을 입력하세요..."
-              className="bg-white text-[#1E293B] placeholder-gray-400 text-sm rounded-xl p-3.5 border border-gray-300 focus:ring-2 focus:ring-[#C5A059] focus:outline-none resize-none leading-relaxed transition-all shadow-inner"
+              className="bg-white text-[#1E293B] placeholder-gray-400 text-[16px] rounded-xl p-3.5 border border-gray-300 focus:ring-2 focus:ring-[#C5A059] focus:outline-none resize-none leading-relaxed transition-all shadow-inner"
             />
           </div>
 
