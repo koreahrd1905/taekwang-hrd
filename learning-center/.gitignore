@@ -1,0 +1,5 @@
+.env
+admin-password.json
+sms-ledger.json
+*.tmp
+node_modules/
