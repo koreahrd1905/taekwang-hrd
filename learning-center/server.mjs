@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {createStorageRoutes} from './sheets-store.mjs';
 import {createAdminAuth} from './admin-auth.mjs';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -16,12 +17,14 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  const persist=()=>{const temp=ledgerPath+'.tmp';fs.writeFileSync(temp,JSON.stringify(ledger),{mode:0o600});fs.renameSync(temp,ledgerPath)};
  const reply=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body))};
  const adminAuth=createAdminAuth(dataRoot,env,reply);
+ const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply});
  return http.createServer(async(req,res)=>{
  try{
  if(req.method==='GET'&&req.url==='/health'){reply(res,200,{ok:true});return}
  const expectedHost=env.HOST_HEADER||(env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).host:'127.0.0.1:'+String(env.PORT||8787));if(req.headers.host!==expectedHost)return reply(res,403,{error:'허용되지 않은 호스트입니다.'});
  const url=new URL(req.url,'http://'+expectedHost);
  if(await adminAuth.handle(req,res,url.pathname))return;
+ if(await storageRoutes.handle(req,res,url))return;
  if(req.method==='GET'&&url.pathname==='/assets/taekwang-ci.png'){res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400'});fs.createReadStream(path.join(root,'assets','taekwang-ci.png')).pipe(res);return}
  if(req.method==='GET'&&(url.pathname==='/'||url.pathname==='/education_portal_v3_1.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(path.join(root,'education_portal_v3_1.html')).pipe(res);return}
  if(req.method!=='POST'||url.pathname!=='/api/sms/send')return reply(res,404,{error:'요청 경로를 찾지 못했습니다.'});
