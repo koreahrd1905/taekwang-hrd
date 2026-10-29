@@ -15,7 +15,7 @@ export function createAdminAuth(root,env,reply){
  if(!pathname.startsWith('/api/admin/'))return false;
  const action=pathname.slice('/api/admin/'.length);
  if(env.RENDER&&!readRecord()&&!env.ADMIN_INITIAL_PASSWORD){reply(res,503,{error:'공개 서버의 관리자 초기 비밀번호를 Render 환경변수 ADMIN_INITIAL_PASSWORD에 먼저 설정하세요.'});return true}
- if(env.ADMIN_INITIAL_PASSWORD&&!readRecord()){if(env.ADMIN_INITIAL_PASSWORD.length<12){reply(res,503,{error:'ADMIN_INITIAL_PASSWORD는 12자 이상으로 설정하세요.'});return true}if(changing){reply(res,503,{error:'관리자 초기 설정 중입니다. 잠시 후 다시 시도하세요.'});return true}changing=true;try{await save(env.ADMIN_INITIAL_PASSWORD)}finally{changing=false}}
+ if(env.ADMIN_INITIAL_PASSWORD&&!readRecord()){if(env.ADMIN_INITIAL_PASSWORD.length<8){reply(res,503,{error:'ADMIN_INITIAL_PASSWORD는 8자 이상으로 설정하세요.'});return true}if(changing){reply(res,503,{error:'관리자 초기 설정 중입니다. 잠시 후 다시 시도하세요.'});return true}changing=true;try{await save(env.ADMIN_INITIAL_PASSWORD)}finally{changing=false}}
  if(action==='status'&&req.method==='GET'){reply(res,200,{initialized:!!readRecord(),authenticated:authenticated(req)});return true}
  if(req.method!=='POST'){reply(res,405,{error:'지원하지 않는 요청입니다.'});return true}
  const expectedOrigin=env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).origin:'http://'+(env.HOST_HEADER||'127.0.0.1:'+String(env.PORT||8787));if(req.headers.origin&&req.headers.origin!==expectedOrigin){reply(res,403,{error:'같은 서버 화면에서 요청하세요.'});return true}

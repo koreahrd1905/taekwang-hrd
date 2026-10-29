@@ -8,7 +8,7 @@
    - SOLAPI_API_KEY: SOLAPI 콘솔에서 발급한 API Key
    - SOLAPI_API_SECRET: 해당 API Secret
    - SOLAPI_FROM: SOLAPI에 사전 등록한 발신번호, 하이픈 제외
-   - SMS_ADMIN_TOKEN: 직접 정한 관리자 발송 암호, 20자 이상
+   - SMS_ADMIN_TOKEN: 직접 정한 관리자 발송 암호, 8자 이상
    - PORT: 기본 8787
 4. Windows에서는 `start.cmd`를 실행하거나 터미널에서 `node --env-file=.env server.mjs`를 실행합니다.
 5. 브라우저에서 http://127.0.0.1:8787 에 접속합니다. 서버를 실행한 PC에서만 접속합니다.
@@ -101,6 +101,6 @@
 
 - Node 웹 서비스 시작 명령: `npm start`, 상태 점검 경로: `/health`.
 - Render에서는 PORT와 0.0.0.0 바인딩, RENDER_EXTERNAL_URL의 호스트·HTTPS Origin, Secure 세션 쿠키를 사용합니다.
-- 공개 배포 전 Render 비밀 환경변수 ADMIN_INITIAL_PASSWORD에 12자 이상 초기 관리자 비밀번호를 설정해야 합니다. 미설정 시 관리자 초기 설정을 차단합니다.
+- 공개 배포 전 Render 비밀 환경변수 ADMIN_INITIAL_PASSWORD에 8자 이상 초기 관리자 비밀번호를 설정해야 합니다. 미설정 시 관리자 초기 설정을 차단합니다.
 - DATA_DIR는 영구 저장소 경로로 지정해야 관리자 비밀번호 변경과 문자 중복 방지 기록이 재배포 후에도 유지됩니다. 브라우저 저장소에 있는 교육·신청 데이터의 공유는 별도 서버 데이터 저장 구현이 필요합니다.
 - GitHub에는 .env와 실행 중 생성된 관리자 비밀번호·문자 기록 파일을 올리지 않습니다.

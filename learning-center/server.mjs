@@ -27,7 +27,7 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  if(req.method!=='POST'||url.pathname!=='/api/sms/send')return reply(res,404,{error:'요청 경로를 찾지 못했습니다.'});
  if(!adminAuth.authenticated(req))return reply(res,401,{error:'관리자 로그인 시간이 만료되었습니다. 다시 로그인하세요.'});
  if(req.headers.origin&&req.headers.origin!==(env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).origin:'http://'+expectedHost))return reply(res,403,{error:'동일한 서버 화면에서 요청하세요.'});
- if(!env.SMS_ADMIN_TOKEN||env.SMS_ADMIN_TOKEN.length<20)return reply(res,503,{error:'서버 관리자 발송 암호(20자 이상)를 설정하세요.'});
+ if(!env.SMS_ADMIN_TOKEN||env.SMS_ADMIN_TOKEN.length<8)return reply(res,503,{error:'서버 관리자 발송 암호(8자 이상)를 설정하세요.'});
  const actual=Buffer.from(req.headers.authorization||''),expected=Buffer.from('Bearer '+env.SMS_ADMIN_TOKEN);if(actual.length!==expected.length||!crypto.timingSafeEqual(actual,expected))return reply(res,401,{error:'관리자 발송 암호가 일치하지 않습니다.'});
  if(!env.SOLAPI_API_KEY||!env.SOLAPI_API_SECRET||!/^0\d{8,10}$/.test(env.SOLAPI_FROM||''))return reply(res,503,{error:'서버에 SOLAPI API Key, Secret, 등록 발신번호를 설정하세요.'});
  if(!/^application\/json(?:;|$)/i.test(req.headers['content-type']||''))return reply(res,415,{error:'JSON 요청만 허용합니다.'});
