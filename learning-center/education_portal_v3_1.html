@@ -156,8 +156,8 @@ async function buildCourseGuidePdf(c,teacher,{PDFLib,fontkit,fontBytes}){
   if(photo){const d=photo.scaleToFit(60,74);page.drawImage(photo,{x:M+12,y:y-12-d.height,width:d.width,height:d.height})}else{draw('담당강사',M+10,y-28,9,blue)}
   lines.forEach((t,i)=>draw(t,M+86,y-19-i*14,i===0?12:9.5,i===0?navy:ink));y-=height+13;
  }
- section('과정 소개',model.intro);section('학습목표',model.goals);
- section('준비물 · 사전 준비',model.materials);section('주요 안내사항',model.notices);section('교육 문의',model.contact);
+ section('과정 소개',model.intro);section('학습 목표',model.goals);
+ section('사전 준비',model.materials);section('기타 안내',model.notices);section('교육 문의',model.contact);
  const summaryPages=doc.getPageCount();summaryMode=false;
  newPage('교육내용 · 커리큘럼');title('교육내용 · 커리큘럼');
  function tableHeader(){page.drawRectangle({x:M,y:y-28,width:CW,height:28,color:navy});draw('구분',M+12,y-18,10,rgb(1,1,1));draw('교육내용 · 실습',M+118,y-18,10,rgb(1,1,1));y-=28}
