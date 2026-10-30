@@ -74,7 +74,7 @@ test('실제 PDF 라이브러리와 한글 글꼴로 PDF를 생성·재열기', 
  const {api,context:runtime}=setup({Uint8Array,ArrayBuffer});vm.runInContext(pdfSource,runtime);vm.runInContext(fontkitSource,runtime);
  const c={...api.courses[0],title:'교육안내문 한글 검증',description:'한글 과정 소개',objectives:'현업에서 활용할 수 있다.',curriculum:'1일차\n개념 학습\n2일차\n실무 적용',materials:'노트북 지참',notices:'필수 계정 사전 준비'};
  const result=await api.buildCourseGuidePdf(c,null,{PDFLib:runtime.PDFLib,fontkit:runtime.fontkit,fontBytes});
- assert(result.drawn.filter(d=>d.page===2).every(d=>!['준비물 · 사전 준비','주요 안내사항','교육 문의'].includes(d.text)));assert(result.drawn.some(d=>d.page===1&&d.text==='준비물 · 사전 준비'));assert(result.bytes.length>1000);const parsed=await runtime.PDFLib.PDFDocument.load(result.bytes);assert.equal(parsed.getPageCount(),2);assert.equal(parsed.getTitle(),c.title+' 교육안내문');
+ assert(result.drawn.filter(d=>d.page===2).every(d=>!['사전 준비','기타 안내','교육 문의'].includes(d.text)));assert(result.drawn.some(d=>d.page===1&&d.text==='사전 준비'));assert(result.bytes.length>1000);const parsed=await runtime.PDFLib.PDFDocument.load(result.bytes);assert.equal(parsed.getPageCount(),2);assert.equal(parsed.getTitle(),c.title+' 교육안내문');
  for(const p of parsed.getPages()){assert(Math.abs(p.getWidth()-595.28)<.1);assert(Math.abs(p.getHeight()-841.89)<.1)}
  for(const theme of ['required','job','ai']){const themed=await api.buildCourseGuidePdf({...c,guide:{theme},title:'2026년 하반기 소비자보호팀 직무맞춤과정'},{name:'검증강사',company:'교육연구소',position:'대표',specialty:'고객상담 및 리더십',career:'기업교육 강의 경력\n조직문화 컨설팅'}, {PDFLib:runtime.PDFLib,fontkit:runtime.fontkit,fontBytes});assert.equal(themed.pageCount,2);assert(themed.drawn.some(d=>d.page===1&&d.text==='검증강사'));}
 });
