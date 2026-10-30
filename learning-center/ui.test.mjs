@@ -95,3 +95,6 @@ test('축소된 저장 응답을 받아도 작성한 과정·약도 데이터를
 
 
 test('커리큘럼 원본 페이지 범위 검사와 편집창 첨부 필드',()=>{const {api,node}=setup();assert.deepEqual(Array.from(api.artworkPageIndices('2-3,1',3)),[1,2,0]);assert.throws(()=>api.artworkPageIndices('0',3));assert.throws(()=>api.artworkPageIndices('4',3));api.editCourse('c1');for(const name of ['curriculumArtwork','curriculumArtworkName','curriculumArtworkPages'])assert(node('modalRoot').innerHTML.includes('name="'+name+'"'));assert(node('modalRoot').innerHTML.includes('pasteCurriculumArtwork'))});
+
+
+test('상세 커리큘럼 원본 보기 버튼은 유효한 첨부가 있을 때만 연결',()=>{const {api,node}=setup();const c=api.courses[0];api.showCourseDetail(c.id);assert(!node('modalRoot').innerHTML.includes('id="detailCurriculumView"'));c.curriculumArtwork='data:image/png;base64,YQ==';api.showCourseDetail(c.id);assert(node('modalRoot').innerHTML.includes('커리큘럼보기'));assert.equal(typeof node('detailCurriculumView').onclick,'function');c.curriculumArtwork='data:text/html;base64,YQ==';api.showCourseDetail(c.id);assert(!node('modalRoot').innerHTML.includes('id="detailCurriculumView"'))});
