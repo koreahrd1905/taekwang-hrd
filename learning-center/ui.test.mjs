@@ -98,3 +98,6 @@ test('커리큘럼 원본 페이지 범위 검사와 편집창 첨부 필드',()
 
 
 test('상세 커리큘럼 원본 보기 버튼은 유효한 첨부가 있을 때만 연결',()=>{const {api,node}=setup();const c=api.courses[0];api.showCourseDetail(c.id);assert(!node('modalRoot').innerHTML.includes('id="detailCurriculumView"'));c.curriculumArtwork='data:image/png;base64,YQ==';api.showCourseDetail(c.id);assert(node('modalRoot').innerHTML.includes('커리큘럼보기'));assert.equal(typeof node('detailCurriculumView').onclick,'function');c.curriculumArtwork='data:text/html;base64,YQ==';api.showCourseDetail(c.id);assert(!node('modalRoot').innerHTML.includes('id="detailCurriculumView"'))});
+
+
+test('문자 발송은 관리자 로그인 인증을 사용하며 별도 발송 암호 입력란 없음',()=>{assert(!html.includes('smsAdminToken'));assert(!html.includes("'Authorization':'Bearer '+token"));assert(html.includes('관리자 로그인으로 발송 권한을 확인합니다.'));assert(html.includes('수신번호와 개인별 내용을 확인하셨습니까?'))});
