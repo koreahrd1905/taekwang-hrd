@@ -39,11 +39,9 @@ const DATA_FILE = path.join(DATA_DIR, 'submissions.json');
 const SMS_CONFIG_FILE = path.join(DATA_DIR, 'sms-config.json');
 
 // ==============================================================================
-// Firebase Realtime Database URL
-// 차후 Firebase 프로젝트를 생성하신 후 아래 변수에 데이터베이스 URL을 넣으시면 됩니다.
-// 예: 'https://my-project-default-rtdb.firebaseio.com'
+// Database URL (파이어베이스 미사용 시 빈 문자열로 유지)
 // ==============================================================================
-const FIREBASE_RTDB_URL = process.env.FIREBASE_RTDB_URL || 'https://taekwang-hrd-default-rtdb.firebaseio.com';
+const FIREBASE_RTDB_URL = process.env.FIREBASE_RTDB_URL || '';
 
 // Active SMS credentials
 let activeApiKey = SOLAPI_API_KEY;
