@@ -37,11 +37,97 @@ app.use((err, req, res, next) => {
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'submissions.json');
 const SMS_CONFIG_FILE = path.join(DATA_DIR, 'sms-config.json');
+const GITHUB_CONFIG_FILE = path.join(DATA_DIR, 'github-config.json');
 
 // ==============================================================================
 // Database URL (파이어베이스 미사용 시 빈 문자열로 유지)
 // ==============================================================================
 const FIREBASE_RTDB_URL = process.env.FIREBASE_RTDB_URL || '';
+
+// ==============================================================================
+// GitHub Auto-Sync Configuration (실시간 GitHub Push 설정)
+// ==============================================================================
+const GITHUB_REPO_OWNER = process.env.GITHUB_REPO_OWNER || 'koreahrd1905';
+const GITHUB_REPO_NAME = process.env.GITHUB_REPO_NAME || 'taekwang-hrd';
+const GITHUB_FILE_PATH = 'server/data/submissions.json';
+let activeGithubToken = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
+
+// Load GitHub token from github-config.json if available
+const loadGithubConfig = () => {
+  try {
+    if (fs.existsSync(GITHUB_CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(GITHUB_CONFIG_FILE, 'utf-8'));
+      if (data.githubToken) activeGithubToken = data.githubToken;
+      console.log('[GitHub Auto-Sync] 저장된 GitHub 토큰 설정을 로드했습니다.');
+    }
+  } catch (err) {
+    console.error('Failed to load github-config.json:', err);
+  }
+};
+loadGithubConfig();
+
+/**
+ * GitHub REST API를 통해 server/data/submissions.json 파일을 실시간 Commit & Push
+ */
+const syncToGitHub = async (data, commitMessage = 'Auto-backup: 과제 제출 실시간 자동 저장') => {
+  if (!activeGithubToken) {
+    return false;
+  }
+
+  try {
+    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/contents/${GITHUB_FILE_PATH}`;
+    const headers = {
+      'Authorization': `Bearer ${activeGithubToken}`,
+      'Accept': 'application/vnd.github.v3+json',
+      'User-Agent': 'Taekwang-HRD-App'
+    };
+
+    // 1. 기존 파일의 SHA 조회
+    let sha = null;
+    try {
+      const getRes = await fetch(apiUrl, { method: 'GET', headers });
+      if (getRes.ok) {
+        const fileInfo = await getRes.json();
+        sha = fileInfo.sha;
+      }
+    } catch (e) {
+      console.warn('[GitHub Auto-Sync] 기존 파일 SHA 조회 실패 (신규 커밋 시도):', e.message);
+    }
+
+    // 2. 파일 내용 Base64 인코딩
+    const contentStr = JSON.stringify(data, null, 2);
+    const contentBase64 = Buffer.from(contentStr, 'utf-8').toString('base64');
+
+    // 3. GitHub API로 파일 커밋 & 푸시
+    const putPayload = {
+      message: commitMessage,
+      content: contentBase64,
+      ...(sha ? { sha } : {})
+    };
+
+    const putRes = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(putPayload)
+    });
+
+    if (putRes.ok) {
+      const result = await putRes.json();
+      console.log(`[GitHub Auto-Sync] 성공적으로 GitHub에 자동 푸시 완료! (Commit: ${result.commit?.sha?.substring(0, 7)})`);
+      return true;
+    } else {
+      const errData = await putRes.json();
+      console.error('[GitHub Auto-Sync] GitHub 푸시 실패:', putRes.status, errData.message);
+      return false;
+    }
+  } catch (err) {
+    console.error('[GitHub Auto-Sync] 네트워크 오류 발생:', err.message);
+    return false;
+  }
+};
 
 // Active SMS credentials
 let activeApiKey = SOLAPI_API_KEY;
@@ -122,7 +208,7 @@ const readSubmissions = async () => {
 };
 
 // Write data helper
-const writeSubmissions = async (data) => {
+const writeSubmissions = async (data, commitMsg) => {
   let localSaved = false;
 
   // 1. 항상 먼저 로컬 파일에 안전하게 저장 (데이터 유실 방지)
@@ -133,7 +219,12 @@ const writeSubmissions = async (data) => {
     console.error('Error writing local submissions file:', err);
   }
 
-  // 2. Firebase RTDB에도 동기화 시도 (성공 여부와 무관하게 로컬 저장이 성공했으면 서비스 지속)
+  // 2. GitHub 저장소에 실시간 자동 Push (백그라운드 비동기)
+  syncToGitHub(data, commitMsg).catch(err => {
+    console.error('[GitHub Auto-Sync Error]', err.message);
+  });
+
+  // 3. Firebase RTDB에도 동기화 시도 (설정 시)
   if (FIREBASE_RTDB_URL) {
     try {
       const res = await fetch(`${FIREBASE_RTDB_URL}/submissions.json`, {
@@ -196,7 +287,8 @@ app.post('/api/submissions', async (req, res) => {
 
   currentData.unshift(newSubmission); // Add to the top of list
 
-  const success = await writeSubmissions(currentData);
+  const commitMsg = `과제제출 자동저장: ${newSubmission.name} (${newSubmission.department}) [${newSubmission.cardType || ''}]`;
+  const success = await writeSubmissions(currentData, commitMsg);
   if (success) {
     res.status(201).json(newSubmission);
 
@@ -250,7 +342,7 @@ app.delete('/api/submissions/:id', async (req, res) => {
     return res.status(404).json({ error: 'Submission not found.' });
   }
 
-  const success = await writeSubmissions(filteredData);
+  const success = await writeSubmissions(filteredData, `과제삭제 자동저장: ${idToDelete}`);
   if (success) {
     res.json({ message: 'Submission deleted successfully.', id: idToDelete });
   } else {
@@ -459,6 +551,49 @@ app.post('/api/sms/send', async (req, res) => {
   } catch (err) {
     console.error('[SMS Handler Exception]', err);
     return res.status(500).json({ error: '문자 발송 처리 중 오류가 발생했습니다: ' + err.message });
+  }
+});
+
+// 8. Get GitHub Auto-Sync Status
+app.get('/api/github/status', (req, res) => {
+  res.json({
+    isConfigured: Boolean(activeGithubToken),
+    repo: `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`,
+    filePath: GITHUB_FILE_PATH,
+    tokenMasked: activeGithubToken ? `${activeGithubToken.slice(0, 4)}****${activeGithubToken.slice(-4)}` : '미설정'
+  });
+});
+
+// 9. Save GitHub Auto-Sync Configuration
+app.post('/api/github/config', (req, res) => {
+  const { githubToken } = req.body;
+  if (!githubToken) {
+    return res.status(400).json({ error: 'GitHub Token을 입력해 주세요.' });
+  }
+
+  activeGithubToken = githubToken.trim();
+
+  try {
+    fs.writeFileSync(GITHUB_CONFIG_FILE, JSON.stringify({
+      githubToken: activeGithubToken,
+      repo: `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`,
+      filePath: GITHUB_FILE_PATH
+    }, null, 2), 'utf-8');
+
+    console.log('[GitHub Auto-Sync] 새로운 GitHub 토큰이 설정되었습니다.');
+    res.json({
+      success: true,
+      message: 'GitHub 실시간 자동 저장 설정이 완료되었습니다.',
+      status: {
+        isConfigured: true,
+        repo: `${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}`,
+        filePath: GITHUB_FILE_PATH,
+        tokenMasked: `${activeGithubToken.slice(0, 4)}****${activeGithubToken.slice(-4)}`
+      }
+    });
+  } catch (err) {
+    console.error('Failed to write github-config.json:', err);
+    res.status(500).json({ error: '설정 저장 중 오류가 발생했습니다.' });
   }
 });
 

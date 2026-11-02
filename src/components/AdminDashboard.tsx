@@ -4,6 +4,7 @@ import { apiService } from '../api';
 import { generateSubmissionPDF } from '../utils/pdfGenerator';
 import { exportSubmissionsToCSV } from '../utils/csvExporter';
 import { SMSModal } from './SMSModal';
+import { GitHubConfigModal } from './GitHubConfigModal';
 import {
   Users,
   Briefcase,
@@ -38,6 +39,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
   const [isSMSModalOpen, setIsSMSModalOpen] = useState(false);
+  const [isGitHubModalOpen, setIsGitHubModalOpen] = useState(false);
 
   // Clear selections when submissions list changes and the selected submission is deleted
   useEffect(() => {
@@ -243,6 +245,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {/* Actions */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
               <button
+                onClick={() => setIsGitHubModalOpen(true)}
+                className="flex items-center justify-center gap-1.5 bg-[#36302a] hover:bg-[#463f37] border border-[#C5A059]/40 text-[#C5A059] text-xs font-bold px-3 py-2 rounded-lg active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+                title="과제 제출 시 GitHub 저장소에 실시간 자동 백업(Push) 설정"
+              >
+                <span>🐙 GitHub 자동저장</span>
+              </button>
+              <button
                 onClick={() => setIsSMSModalOpen(true)}
                 className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-gradient-to-r from-[#C5A059] to-[#d8b56f] hover:from-[#b08d48] hover:to-[#C5A059] text-[#2c2722] text-xs font-bold px-3 py-2 rounded-lg shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap"
                 title="학습자 휴대전화 번호로 문자메시지 발송"
@@ -416,6 +425,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         isOpen={isSMSModalOpen}
         onClose={() => setIsSMSModalOpen(false)}
         submissions={submissions}
+        addToast={addToast}
+      />
+
+      {/* GitHub Auto-Sync Modal Popup */}
+      <GitHubConfigModal
+        isOpen={isGitHubModalOpen}
+        onClose={() => setIsGitHubModalOpen(false)}
         addToast={addToast}
       />
 
