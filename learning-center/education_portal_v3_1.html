@@ -30,6 +30,7 @@
  .modalback,.map-overlay{padding:0}.modal,.map-dialog{max-height:100vh;max-height:100dvh;border-radius:0;padding:18px 14px calc(18px + env(safe-area-inset-bottom))}
  #portalSaveProgress{width:calc(100vw - 24px);max-width:420px;justify-content:center;bottom:max(12px,env(safe-area-inset-bottom))}
 }
+.course-guide-pages{flex:1;min-height:180px;overflow:auto;overscroll-behavior:contain;background:#e9edf3;border:1px solid #cbd5e3;border-radius:8px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:12px}.course-guide-pages canvas{display:block;max-width:100%;background:white;box-shadow:0 2px 10px #17263f26}@media(max-width:760px){.course-guide-pages{padding:8px;gap:8px}}
 </style>
 </head>
 <body>
@@ -351,14 +352,34 @@ function loadCourseGuideResources(){
  ]).then(([PDFLib,fontkit,fontBytes])=>({PDFLib,fontkit,fontBytes})).catch(error=>{courseGuideResourcesPromise=null;throw error});return courseGuideResourcesPromise;
 }
 function disposeCourseGuide(){courseGuideRequest++;if(courseGuideBlobUrl){URL.revokeObjectURL(courseGuideBlobUrl);courseGuideBlobUrl=null}}
+function courseGuideMobilePreview(){return /Android|iPhone|iPad|iPod/i.test(typeof navigator==='undefined'?'':navigator.userAgent)||!!window.matchMedia?.('(max-width: 760px)').matches}
+async function renderCourseGuidePages(bytes,host,request){
+ const reader=window.pdfjsLib;if(!reader)throw Error('PDF 화면 표시 도구를 불러오지 못했습니다.');
+ reader.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+ const documentTask=reader.getDocument({data:bytes.slice()});let pdf;
+ try{pdf=await documentTask.promise;for(let index=1;index<=pdf.numPages;index++){
+  if(request!==courseGuideRequest||!host.isConnected)return;
+  const page=await pdf.getPage(index),base=page.getViewport({scale:1}),width=Math.max(280,Math.min(host.clientWidth-24||600,800)),scale=width/base.width;
+  const viewport=page.getViewport({scale}),pixelRatio=Math.min(window.devicePixelRatio||1,2),canvas=document.createElement('canvas');
+  canvas.width=Math.ceil(viewport.width*pixelRatio);canvas.height=Math.ceil(viewport.height*pixelRatio);canvas.style.width='100%';canvas.style.height='auto';canvas.setAttribute('aria-label','교육안내문 '+index+'쪽');
+  const context=canvas.getContext('2d');if(!context)throw Error('화면에 PDF를 그릴 수 없습니다.');
+  await page.render({canvasContext:context,viewport,transform:[pixelRatio,0,0,pixelRatio,0,0],background:'rgb(255,255,255)'}).promise;
+  if(request!==courseGuideRequest||!host.isConnected)return;host.appendChild(canvas);$('courseGuideStatus').textContent='A4 '+pdf.numPages+'쪽 · '+index+'쪽 표시 완료';
+ }}finally{await pdf?.destroy()}
+}
 async function openCourseGuide(id){
  const c=course(id);if(!c)return;disposeCourseGuide();const request=courseGuideRequest,teacher=instructor(c.instructorId);
- $('modalRoot').innerHTML='<div class="modalback" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="교육안내문 PDF" style="width:min(1050px,100%);height:92vh;display:flex;flex-direction:column"><h2 style="margin-bottom:10px">교육안내문 PDF</h2><div class="actionrow" style="flex-wrap:wrap;margin-bottom:10px"><button type="button" class="btn secondary" id="printCourseGuide" disabled>인쇄</button><button type="button" class="btn secondary" id="closeModal">닫기</button></div><div id="courseGuideStatus" role="status" style="font-size:12px;line-height:1.6;margin-bottom:8px">한글 PDF 안내문을 만드는 중입니다. 처음에는 글꼴을 불러오는 데 시간이 걸릴 수 있습니다.</div><iframe id="courseGuidePreview" title="교육안내문 PDF 미리보기" style="width:100%;flex:1;min-height:240px;border:1px solid #e3e9f2;border-radius:8px"></iframe></div></div>';attachClose({dismissOnBackdrop:false});
- const host=$('courseGuidePreview');
+ const mobile=courseGuideMobilePreview();
+ $('modalRoot').innerHTML='<div class="modalback" id="modalBack"><div class="modal" role="dialog" aria-modal="true" aria-label="교육안내문 PDF" style="width:min(1050px,100%);height:92vh;display:flex;flex-direction:column"><h2 style="margin-bottom:10px">교육안내문 PDF</h2><div class="actionrow" style="flex-wrap:wrap;margin-bottom:10px"><a class="btn" id="downloadCourseGuide" style="display:none" download="교육안내문.pdf">PDF 다운로드</a><button type="button" class="btn secondary" id="printCourseGuide" disabled>인쇄</button><button type="button" class="btn secondary" id="closeModal">닫기</button></div><div id="courseGuideStatus" role="status" style="font-size:12px;line-height:1.6;margin-bottom:8px">한글 PDF 안내문을 만드는 중입니다. 처음에는 글꼴을 불러오는 데 시간이 걸릴 수 있습니다.</div>'+(mobile?'<div id="courseGuidePages" class="course-guide-pages" aria-label="교육안내문 미리보기"></div>':'<iframe id="courseGuidePreview" title="교육안내문 PDF 미리보기" style="width:100%;flex:1;min-height:240px;border:1px solid #e3e9f2;border-radius:8px"></iframe>')+'</div></div>';attachClose({dismissOnBackdrop:false});
+ const host=$(mobile?'courseGuidePages':'courseGuidePreview');
  try{const resources=await loadCourseGuideResources();if(request!==courseGuideRequest||!host.isConnected)return;const pdf=await buildCourseGuidePdf(c,teacher,resources);if(request!==courseGuideRequest||!host.isConnected)return;
-  const url=URL.createObjectURL(new Blob([pdf.bytes],{type:'application/pdf'}));courseGuideBlobUrl=url;host.src=url+'#toolbar=1&navpanes=0';$('courseGuideStatus').textContent='A4 '+pdf.pageCount+'쪽 · 인쇄 버튼을 눌러 출력하세요.';
+  const url=URL.createObjectURL(new Blob([pdf.bytes],{type:'application/pdf'}));courseGuideBlobUrl=url;
+  const download=$('downloadCourseGuide');download.href=url;download.download=(c.title||'교육안내문').replace(/[\\/:*?"<>|]/g,'_')+'-교육안내문.pdf';download.style.display='inline-flex';
   const print=$('printCourseGuide');print.disabled=false;
-  print.onclick=()=>{try{host.contentWindow.focus();host.contentWindow.print()}catch{window.open(url,'_blank','noopener');$('courseGuideStatus').textContent='열린 PDF의 인쇄 버튼 또는 Ctrl+P를 이용하세요.'}};
+  if(mobile){$('courseGuideStatus').textContent='A4 '+pdf.pageCount+'쪽 · 화면에 표시하는 중입니다.';print.textContent='PDF 열기';print.onclick=()=>window.open(url,'_blank','noopener');
+   try{await renderCourseGuidePages(pdf.bytes,host,request)}catch(error){if(request===courseGuideRequest&&host.isConnected)$('courseGuideStatus').textContent='미리보기를 표시하지 못했습니다. PDF 다운로드로 확인해 주세요. ('+error.message+')'}
+  }else{host.src=url+'#toolbar=1&navpanes=0';$('courseGuideStatus').textContent='A4 '+pdf.pageCount+'쪽 · 인쇄 버튼을 눌러 출력하세요.';
+   print.onclick=()=>{try{host.contentWindow.focus();host.contentWindow.print()}catch{window.open(url,'_blank','noopener');$('courseGuideStatus').textContent='열린 PDF의 인쇄 버튼 또는 Ctrl+P를 이용하세요.'}}}
  }catch(error){if(request!==courseGuideRequest||!host.isConnected)return;$('courseGuideStatus').textContent='PDF 생성 실패: '+error.message+' · 닫은 뒤 다시 열어 주세요.'}
 }
 async function printCourseOutline(id){return openCourseGuide(id)}
