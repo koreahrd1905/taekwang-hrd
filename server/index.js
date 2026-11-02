@@ -84,39 +84,76 @@ initDataStore();
 
 // Read data helper
 const readSubmissions = async () => {
-  try {
-    if (FIREBASE_RTDB_URL) {
+  // 1. Firebase 연동이 설정된 경우 먼저 원격 DB 조회를 시도
+  if (FIREBASE_RTDB_URL) {
+    try {
       const res = await fetch(`${FIREBASE_RTDB_URL}/submissions.json`);
-      if (!res.ok) throw new Error('Firebase DB Read Error');
-      const data = await res.json();
-      if (!data) return [];
-      return Array.isArray(data) ? data : Object.values(data);
+      if (res.ok) {
+        const data = await res.json();
+        if (data) {
+          const list = Array.isArray(data) ? data : Object.values(data);
+          // Firebase에 데이터가 있는 경우 로컬 파일에도 최신 데이터 백업 저장
+          try {
+            fs.writeFileSync(DATA_FILE, JSON.stringify(list, null, 2), 'utf-8');
+          } catch (writeErr) {
+            console.error('[Backup Error] 로컬 파일 백업 실패:', writeErr);
+          }
+          return list;
+        }
+      } else {
+        console.warn(`[Firebase DB] 응답 오류 (HTTP ${res.status}): 로컬 저장소로 자동 폴백합니다.`);
+      }
+    } catch (err) {
+      console.warn('[Firebase DB] 네트워크/권한 오류:', err.message, '-> 로컬 저장소로 자동 폴백합니다.');
     }
-    const rawData = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(rawData);
-  } catch (err) {
-    console.error('Error reading submissions file:', err);
-    return [];
   }
+
+  // 2. Firebase가 실패하거나 데이터가 없을 때 로컬 파일에서 안전하게 복구 로드
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const rawData = fs.readFileSync(DATA_FILE, 'utf-8');
+      const localData = JSON.parse(rawData);
+      if (Array.isArray(localData)) {
+        return localData;
+      }
+    }
+  } catch (err) {
+    console.error('Error reading local submissions file:', err);
+  }
+  return [];
 };
 
 // Write data helper
 const writeSubmissions = async (data) => {
+  let localSaved = false;
+
+  // 1. 항상 먼저 로컬 파일에 안전하게 저장 (데이터 유실 방지)
   try {
-    if (FIREBASE_RTDB_URL) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
+    localSaved = true;
+  } catch (err) {
+    console.error('Error writing local submissions file:', err);
+  }
+
+  // 2. Firebase RTDB에도 동기화 시도 (성공 여부와 무관하게 로컬 저장이 성공했으면 서비스 지속)
+  if (FIREBASE_RTDB_URL) {
+    try {
       const res = await fetch(`${FIREBASE_RTDB_URL}/submissions.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
-      return res.ok;
+      if (res.ok) {
+        console.log('[Firebase RTDB] 정상 동기화 완료');
+      } else {
+        console.warn(`[Firebase RTDB] 동기화 실패 (HTTP ${res.status}): 권한 규칙 확인 필요`);
+      }
+    } catch (err) {
+      console.error('[Firebase RTDB] 동기화 네트워크 오류:', err.message);
     }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    return true;
-  } catch (err) {
-    console.error('Error writing submissions file:', err);
-    return false;
   }
+
+  return localSaved;
 };
 
 /**
