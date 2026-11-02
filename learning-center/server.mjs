@@ -11,13 +11,31 @@ export function validateMessages(input,from){
  if(!Array.isArray(input)||input.length<1||input.length>1000)throw Error('발송 대상은 1~1,000건이어야 합니다.');
  const seen=new Set();return input.map(m=>{if(!m||typeof m.to!=='string'||!/^010\d{8}$/.test(m.to)||typeof m.text!=='string'||!m.text.trim()||m.text.length>1800||/\{[^{}]+\}/.test(m.text))throw Error('연락처 또는 문자 본문이 올바르지 않습니다.');return {to:m.to,from,text:m.text,autoTypeDetect:true}}).filter(m=>{const key=m.to+'\n'+m.text;if(seen.has(key))return false;seen.add(key);return true});
 }
+export function createApprovalNotifier({env,fetcher,ledger,persist}){
+ return async(application,course)=>{
+ const key='approval-'+crypto.createHash('sha256').update(application.id).digest('hex');
+ if(ledger[key])return ledger[key].state==='complete'&&ledger[key].result?.accepted===1?'':application.name+'님 승인 문자: 이전 발송 결과를 SOLAPI에서 확인하세요. 자동 재발송하지 않습니다.';
+ const fail=message=>application.name+'님 승인 완료 / 문자 미발송: '+message;
+ if(!env.SOLAPI_API_KEY||!env.SOLAPI_API_SECRET||!/^0\d{8,10}$/.test(env.SOLAPI_FROM||''))return fail('문자 연동 설정을 확인하세요.');
+ const to=String(application.phone||'').replace(/[\s()-]/g,'');if(!/^010\d{8}$/.test(to))return fail('휴대폰 번호를 확인하세요.');
+ const contacts=(course.educationContacts||[]).filter(x=>x.name||x.phone).map(x=>[x.company,[x.name,x.position].filter(Boolean).join(' '),x.phone].filter(Boolean).join(' · ')).join(' / ')||'교육 담당자 문의';
+ const date=value=>String(value||'').replaceAll('-','. '),day=date(course.date)+(course.endDate&&course.endDate!==course.date?' ~ '+date(course.endDate):'');
+ const text='[태광러닝센터 | 교육신청 승인 안내]\n'+application.name+'님, 「'+course.title+'」 신청이 정상 승인 되었습니다.\n• 교육일: '+day+'\n• 교육시간: '+(course.startTime||'담당자 문의')+(course.endTime?'~'+course.endTime:'')+'\n• 교육장소: '+(course.place||'담당자 문의')+'\n문의: '+contacts;
+ let messages;try{messages=validateMessages([{to,text}],env.SOLAPI_FROM)}catch{return fail('문자 내용 또는 연락처를 확인하세요.')}
+ ledger[key]={state:'pending',created:new Date().toISOString()};persist();
+ try{const response=await fetcher('https://api.solapi.com/messages/v4/send-many/detail',{method:'POST',headers:{'Content-Type':'application/json',Authorization:authHeader(env.SOLAPI_API_KEY,env.SOLAPI_API_SECRET)},body:JSON.stringify({messages,allowDuplicates:true,showMessageList:true}),signal:AbortSignal.timeout(25000)});const data=await response.json(),count=data.groupInfo?.count;
+ if(!response.ok||count?.registeredSuccess!==1||count?.registeredFailed!==0){ledger[key]={...ledger[key],state:response.status>=500?'unknown':'complete',result:{accepted:0}};persist();return fail('발송 접수 실패 또는 결과 확인 필요. SOLAPI 내역을 확인하세요.');}
+ ledger[key]={...ledger[key],state:'complete',result:{accepted:1,groupId:data.groupInfo.groupId||''}};persist();return '';
+ }catch{ledger[key]={...ledger[key],state:'unknown'};persist();return fail('접수 여부가 불명확하여 자동 재발송하지 않습니다. SOLAPI 내역을 확인하세요.');}
+ }
+}
 export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  const dataRoot=env.DATA_DIR||root;fs.mkdirSync(dataRoot,{recursive:true});
  const ledgerPath=env.SMS_LEDGER_FILE||path.join(dataRoot,'sms-ledger.json');let ledger={};if(fs.existsSync(ledgerPath)){ledger=JSON.parse(fs.readFileSync(ledgerPath,'utf8'));for(const item of Object.values(ledger))if(item.state==='pending')item.state='unknown'}
  const persist=()=>{const temp=ledgerPath+'.tmp';fs.writeFileSync(temp,JSON.stringify(ledger),{mode:0o600});fs.renameSync(temp,ledgerPath)};
  const reply=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body))};
  const adminAuth=createAdminAuth(dataRoot,env,reply);
- const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply});
+ const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply,onApproved:createApprovalNotifier({env,fetcher,ledger,persist})});
  if(storageRoutes.store.configured)adminAuth.setPersistence(storageRoutes.authPersistence);
  return http.createServer(async(req,res)=>{
  try{
