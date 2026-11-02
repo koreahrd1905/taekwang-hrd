@@ -132,7 +132,7 @@ function showCourseMap(c){
  closeCourseMap();const overlay=document.createElement('div');overlay.id='courseMapOverlay';overlay.className='map-overlay';
  overlay.innerHTML='<div class="map-dialog" role="dialog" aria-modal="true" aria-label="교육장소 약도"><div class="panelhead"><h2>교육장소 약도</h2><button type="button" class="btn secondary small" id="closeCourseMap">닫기</button></div><p>'+esc(c.place||'')+'</p><div id="mapMedia"></div></div>';
  document.body.append(overlay);const host=document.getElementById('mapMedia');
- if(validMapData(c.mapData)){const media=document.createElement(c.mapData.startsWith('data:application/pdf')?'iframe':'img');media.src=c.mapData;if(media.tagName==='IMG')media.alt=(c.place||'교육장소')+' 약도';else media.title='교육장소 약도 PDF';host.append(media);const download=document.createElement('a');download.href=c.mapData;download.download=c.mapName||'교육장소약도'+(c.mapData.startsWith('data:application/pdf')?'.pdf':'.png');download.className='btn secondary small';download.textContent='약도 파일 다운로드';host.append(download)}else host.textContent=c.mapError||'등록된 약도가 없습니다. 교육 담당자에게 문의해 주세요.';
+ if(validMapData(c.mapData)){const media=document.createElement(c.mapData.startsWith('data:application/pdf')?'iframe':'img');media.src=c.mapData;if(media.tagName==='IMG')media.alt=(c.place||'교육장소')+' 약도';else media.title='교육장소 약도 PDF';host.append(media);if(pdf){const print=document.createElement('button');print.type='button';print.className='btn secondary small';print.textContent='커리큘럼 출력 🖨️';print.style.margin='8px 8px 0 0';print.onclick=()=>{try{media.contentWindow.focus();media.contentWindow.print()}catch{window.open(data,'_blank','noopener')}};host.append(print)}const download=document.createElement('a');download.href=c.mapData;download.download=c.mapName||'교육장소약도'+(c.mapData.startsWith('data:application/pdf')?'.pdf':'.png');download.className='btn secondary small';download.textContent='약도 파일 다운로드';host.append(download)}else host.textContent=c.mapError||'등록된 약도가 없습니다. 교육 담당자에게 문의해 주세요.';
  if(location.search&&/[?&]map=/.test(location.search)){document.documentElement.classList.add('map-only','map-ready');document.getElementById('closeCourseMap').textContent='교육 목록'}document.getElementById('closeCourseMap').onclick=closeCourseMap;overlay.onclick=e=>{if(e.target===overlay)closeCourseMap()};document.getElementById('closeCourseMap').focus();
 }
 async function readMapFile(file){
@@ -161,16 +161,28 @@ function attachCurriculumFullscreen(layer){
  button.onclick=async()=>{button.disabled=true;try{if(layer.classList.contains('curriculum-expanded')||document.fullscreenElement===layer){if(document.fullscreenElement===layer&&document.exitFullscreen)await document.exitFullscreen();layer.classList.remove('curriculum-expanded')}else{layer.classList.add('curriculum-expanded');if(layer.requestFullscreen)try{await layer.requestFullscreen()}catch{}}label()}finally{button.disabled=false}};label();
 }
 
+
+async function fitCurriculumPrintPdf(data,pages,PDFLib){
+ const {PDFDocument,degrees}=PDFLib,source=await PDFDocument.load(data),output=await PDFDocument.create(),indices=artworkPageIndices(pages,source.getPageCount()),placements=[];
+ for(const index of indices){
+  const original=source.getPage(index),box=original.getMediaBox(),embedded=await output.embedPage(original,{left:box.x,bottom:box.y,right:box.x+box.width,top:box.y+box.height}),angle=((original.getRotation().angle%360)+360)%360,sideways=angle===90||angle===270,originalWidth=sideways?embedded.height:embedded.width,originalHeight=sideways?embedded.width:embedded.height;
+  const landscape=originalWidth>originalHeight,W=landscape?841.89:595.28,H=landscape?595.28:841.89,margin=28.35,scale=Math.min((W-2*margin)/originalWidth,(H-2*margin)/originalHeight),width=originalWidth*scale,height=originalHeight*scale,left=(W-width)/2,bottom=(H-height)/2;
+  let x=left,y=bottom;if(angle===90)y+=height;else if(angle===180){x+=width;y+=height}else if(angle===270)x+=width;
+  const page=output.addPage([W,H]);page.drawPage(embedded,{x,y,width:embedded.width*scale,height:embedded.height*scale,rotate:degrees(-angle)});placements.push({source:index,pageWidth:W,pageHeight:H,left,bottom,width,height,rotation:angle});
+ }
+ output.setTitle('교육 커리큘럼 · 인쇄용');return {bytes:await output.save(),placements};
+}
+
 async function showCourseCurriculum(c){
  closeCourseCurriculum();const version=curriculumViewVersion,layer=document.createElement('div');layer.id='curriculumViewOverlay';layer.className='map-overlay';
  layer.innerHTML='<div class="map-dialog" role="dialog" aria-modal="true" aria-label="교육 커리큘럼 원본"><div class="panelhead"><h2>교육내용 · 커리큘럼</h2><div class="actionrow"><button type="button" id="fullscreenCurriculumView" class="btn secondary small" aria-pressed="false">⛶ 전체 화면 보기</button><button type="button" id="closeCurriculumView" class="btn secondary small">닫기</button></div></div><p>'+esc(c.title||'')+'</p><div id="curriculumOriginalContent" role="status">원본을 불러오는 중입니다…</div></div>';
  document.body.append(layer);attachCurriculumFullscreen(layer);document.getElementById('closeCurriculumView').onclick=closeCourseCurriculum;layer.onclick=e=>{if(e.target===layer)closeCourseCurriculum()};layer.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();closeCourseCurriculum()}});document.getElementById('closeCurriculumView').focus();
  const host=document.getElementById('curriculumOriginalContent');
  try{if(!validMapData(c.curriculumArtwork))throw Error('등록된 커리큘럼 원본이 없습니다.');let data=c.curriculumArtwork;
- if(data.startsWith('data:application/pdf')&&String(c.curriculumArtworkPages||'').trim()){
-  const PDFLib=await loadGuideScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js','PDFLib'),source=await PDFLib.PDFDocument.load(data),selected=await PDFLib.PDFDocument.create(),pages=await selected.copyPages(source,artworkPageIndices(c.curriculumArtworkPages,source.getPageCount()));pages.forEach(p=>selected.addPage(p));const bytes=await selected.save();if(version!==curriculumViewVersion)return;curriculumViewUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));data=curriculumViewUrl;
- }else if(data.startsWith('data:application/pdf')){const bytes=Uint8Array.from(atob(data.split(',')[1]),ch=>ch.charCodeAt(0));curriculumViewUrl=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'}));data=curriculumViewUrl}
- if(version!==curriculumViewVersion)return;host.textContent='';const pdf=c.curriculumArtwork.startsWith('data:application/pdf'),media=document.createElement(pdf?'iframe':'img');media.src=data;if(pdf)media.title='커리큘럼 원본 PDF';else media.alt='교육내용 · 커리큘럼 원본';host.append(media);const download=document.createElement('a');download.href=data;download.download=c.curriculumArtworkName||('커리큘럼'+(pdf?'.pdf':'.png'));download.className='btn secondary small';download.textContent='커리큘럼 다운로드';host.append(download);
+ if(data.startsWith('data:application/pdf')){
+  const PDFLib=await loadGuideScript('https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js','PDFLib'),fitted=await fitCurriculumPrintPdf(data,c.curriculumArtworkPages,PDFLib);if(version!==curriculumViewVersion)return;curriculumViewUrl=URL.createObjectURL(new Blob([fitted.bytes],{type:'application/pdf'}));data=curriculumViewUrl;
+ }
+ if(version!==curriculumViewVersion)return;host.textContent='';const pdf=c.curriculumArtwork.startsWith('data:application/pdf'),media=document.createElement(pdf?'iframe':'img');media.src=pdf?data+'#view=Fit':data;if(pdf)media.title='커리큘럼 원본 PDF';else media.alt='교육내용 · 커리큘럼 원본';host.append(media);const download=document.createElement('a');download.href=data;download.download=c.curriculumArtworkName||('커리큘럼'+(pdf?'.pdf':'.png'));download.className='btn secondary small';download.textContent='커리큘럼 다운로드';host.append(download);
  }catch(error){if(version===curriculumViewVersion)host.textContent='커리큘럼을 열지 못했습니다: '+error.message}
 }
 
@@ -641,6 +653,7 @@ $('nav').onclick=e=>{const b=e.target.closest('button[data-page]');if(b)nav(b.da
 })();
 </script>
 </body></html>
+
 
 
 
