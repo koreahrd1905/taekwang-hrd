@@ -18,6 +18,7 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  const reply=(res,status,body)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body))};
  const adminAuth=createAdminAuth(dataRoot,env,reply);
  const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply});
+ if(storageRoutes.store.configured)adminAuth.setPersistence(storageRoutes.authPersistence);
  return http.createServer(async(req,res)=>{
  try{
  if(req.method==='GET'&&req.url==='/health'){reply(res,200,{ok:true});return}
