@@ -18,7 +18,7 @@ export function createAdminAuth(root,env,reply){
  const validPassword=password=>typeof password==='string'&&(/^(?:[0-9]{4}|[0-9]{6})$/.test(password)||(password.length>=8&&password.length<=128));
  const initialize=()=>ready||(ready=(async()=>{if(persistence){const backup=await persistence.read();if(backup?.salt&&backup?.hash)writeRecord(backup);else if(readRecord())await persistence.write(readRecord())}if(env.ADMIN_INITIAL_PASSWORD&&!readRecord()){if(!validPassword(env.ADMIN_INITIAL_PASSWORD))throw Error('초기 비밀번호 형식을 확인하세요.');await save(env.ADMIN_INITIAL_PASSWORD)}})().catch(error=>{ready=null;throw error}));
  const save=async password=>{const salt=crypto.randomBytes(16).toString('hex'),hash=(await derive(password,salt,64)).toString('hex');const record={salt,hash,sessionVersion:sign(password)};if(persistence)await persistence.write(record);writeRecord(record)};
- return {authenticated,setPersistence:adapter=>{persistence=adapter;ready=null},async handle(req,res,pathname){
+ return {authenticated,ensureReady:initialize,setPersistence:adapter=>{persistence=adapter;ready=null},async handle(req,res,pathname){
  if(!pathname.startsWith('/api/admin/'))return false;
  const action=pathname.slice('/api/admin/'.length);try{await initialize()}catch{reply(res,503,{error:'관리자 인증정보 저장소 연결이 지연되고 있습니다. 잠시 후 다시 로그인하세요. 비밀번호를 다시 설정할 필요는 없습니다.'});return true}
  if(env.RENDER&&!readRecord()&&!env.ADMIN_INITIAL_PASSWORD){reply(res,503,{error:'공개 서버의 관리자 초기 비밀번호를 Render 환경변수 ADMIN_INITIAL_PASSWORD에 먼저 설정하세요.'});return true}
