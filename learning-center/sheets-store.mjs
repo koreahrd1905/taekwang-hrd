@@ -6,7 +6,10 @@ export function createSheetsStore(env=process.env,fetcher=fetch){
  async function call(action,payload={},options={}){
   if(!configured)throw new SheetsStoreError('Google Sheets 연결 설정이 필요합니다.');
   if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url))throw new SheetsStoreError('Google Apps Script 웹 앱 URL 형식을 확인하세요.');
-  const body=Buffer.from(JSON.stringify({action,payload:action==='save'?{...payload,compactResponse:true}:payload})).toString('base64');
+  let saveState=payload.state;
+  if(action==='save'&&saveState&&typeof saveState==='object'){const {revision:_internalRevision,...cleanState}=saveState;saveState=cleanState}
+  const safePayload=action==='save'?{...payload,state:saveState,compactResponse:true}:payload;
+  const body=Buffer.from(JSON.stringify({action,payload:safePayload})).toString('base64');
   const timestamp=String(Date.now()),signature=crypto.createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex');
   const recover=async()=>{
    if(action!=='save'||!payload.state)return null;
