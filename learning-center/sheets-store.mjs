@@ -3,7 +3,35 @@ export class SheetsStoreError extends Error{constructor(message,status=503){supe
 export function createSheetsStore(env=process.env,fetcher=fetch){
  const url=env.GOOGLE_SHEETS_WEB_APP_URL,secret=env.GOOGLE_SHEETS_SHARED_SECRET;
  const configured=Boolean(url&&secret&&secret.length>=32);
- async function call(action,payload={}){if(!configured)throw new SheetsStoreError('Google Sheets 연결 설정이 필요합니다.');if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url))throw new SheetsStoreError('Google Apps Script 웹 앱 URL 형식을 확인하세요.');const body=Buffer.from(JSON.stringify({action,payload:action==='save'?{...payload,compactResponse:true}:payload})).toString('base64'),timestamp=String(Date.now()),signature=crypto.createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex');let response;try{response=await fetcher(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timestamp,body,signature}),signal:AbortSignal.timeout(90000)})}catch{if(action==='save'&&payload.state){try{const latest=await call('admin'),same=['courses','apps','instructors','_adminAuth','cancellationHistory'].every(key=>JSON.stringify(latest[key]??null)===JSON.stringify(payload.state[key]??null));if(same)return {revision:latest.revision,warning:''}}catch{}}throw new SheetsStoreError('공용 저장소 응답을 확인하지 못했습니다. 작성 내용은 유지됩니다. 같은 화면에서 다시 저장해 주세요.')}let data;try{data=await response.json()}catch{throw new SheetsStoreError('공용 저장소 응답 형식이 올바르지 않습니다. Apps Script 배포 권한을 확인하세요.')}if(!response.ok||data.ok!==true)throw new SheetsStoreError(data.error||'공용 저장소 요청 실패',data.status||503);if(action==='public'&&data.data?.counts)data.data.totalApplications=Object.values(data.data.counts).reduce((sum,value)=>sum+Number(value||0),0);return data.data}
+ async function call(action,payload={},options={}){
+  if(!configured)throw new SheetsStoreError('Google Sheets 연결 설정이 필요합니다.');
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url))throw new SheetsStoreError('Google Apps Script 웹 앱 URL 형식을 확인하세요.');
+  const body=Buffer.from(JSON.stringify({action,payload:action==='save'?{...payload,compactResponse:true}:payload})).toString('base64');
+  const timestamp=String(Date.now()),signature=crypto.createHmac('sha256',secret).update(timestamp+'.'+body).digest('hex');
+  const recover=async()=>{
+   if(action!=='save'||!payload.state)return null;
+   try{
+    const latest=await call('admin');
+    const matches=options.verifySaved?options.verifySaved(latest):['courses','apps','instructors','_adminAuth','cancellationHistory'].every(key=>JSON.stringify(latest[key]??null)===JSON.stringify(payload.state[key]??null));
+    if(matches)return {revision:latest.revision,warning:'',...(options.verifySaved?{recoveredState:latest}:{})};
+   }catch{}
+   return null;
+  };
+  let response,data;
+  try{
+   response=await fetcher(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({timestamp,body,signature}),signal:AbortSignal.timeout(90000)});
+   data=await response.json();
+  }catch{
+   const recovered=await recover();if(recovered)return recovered;
+   throw new SheetsStoreError('공용 저장소 응답을 확인하지 못했습니다. 작성 내용은 유지됩니다. 같은 화면에서 다시 저장해 주세요.');
+  }
+  if(!response.ok||data.ok!==true){
+   if((data.status||response.status)>=500){const recovered=await recover();if(recovered)return recovered}
+   throw new SheetsStoreError(data.error||'공용 저장소 요청 실패',data.status||503);
+  }
+  if(action==='public'&&data.data?.counts)data.data.totalApplications=Object.values(data.data.counts).reduce((sum,value)=>sum+Number(value||0),0);
+  return data.data;
+ }
  return {configured,call};
 }
 // Apply only explicitly edited fields; unrelated submissions and administrator edits survive.
@@ -21,7 +49,7 @@ export function mergeStorageChanges(state,changes){
  }
  return next;
 }
-export function createStorageRoutes({env,fetcher,adminAuth,reply,onApproved}){const store=createSheetsStore(env,fetcher);let cachedAdmin=null,writeQueue=Promise.resolve();const serial=task=>{const result=writeQueue.then(task,task);writeQueue=result.catch(()=>{});return result};const clientState=state=>{const {_adminAuth,...visible}=state;return visible};const prepareApprovals=(before,state)=>{if(!onApproved)return;for(const a of state.apps){const old=before.apps.find(x=>x.id===a.id);if(a.status==='승인'&&old&&old.status!=='승인'&&!old.approvalSmsRequestedAt)a.approvalSmsRequestedAt=new Date().toISOString();else if(old?.approvalSmsRequestedAt)a.approvalSmsRequestedAt=old.approvalSmsRequestedAt}};const approvalWarnings=async(before,state)=>{if(!onApproved)return '';const approved=state.apps.filter(a=>a.status==='승인'&&before.apps.some(old=>old.id===a.id&&old.status!=='승인'&&!old.approvalSmsRequestedAt));const warnings=[];for(const a of approved){const c=state.courses.find(c=>c.id===a.courseId);if(!c)continue;try{const warning=await onApproved(a,c);if(warning)warnings.push(warning)}catch{warnings.push(a.name+'님 승인 완료 / 문자 발송 결과 확인 필요: SOLAPI 내역을 확인하세요.')}}return warnings.join('\n')};const authPersistence={read:async()=>{cachedAdmin=await store.call('admin');return cachedAdmin._adminAuth||null},write:record=>serial(async()=>{let latest=cachedAdmin||await store.call('admin');for(let attempt=0;attempt<3;attempt++){const state={courses:latest.courses,apps:latest.apps,instructors:latest.instructors,cancellationHistory:latest.cancellationHistory||[],_adminAuth:record};try{const saved=await store.call('save',{revision:latest.revision,state});cachedAdmin={...state,revision:saved.revision};return}catch(error){if(error.status!==409||attempt===2)throw error;latest=await store.call('admin')}}})};return {store,authPersistence,invalidate(){cachedAdmin=null},async handle(req,res,url){
+export function createStorageRoutes({env,fetcher,adminAuth,reply,onApproved}){const store=createSheetsStore(env,fetcher);let cachedAdmin=null,writeQueue=Promise.resolve();const serial=task=>{const result=writeQueue.then(task,task);writeQueue=result.catch(()=>{});return result};const clientState=state=>{const {_adminAuth,...visible}=state;return visible};const prepareApprovals=(before,state)=>{if(!onApproved)return;for(const a of state.apps){const old=before.apps.find(x=>x.id===a.id);if(a.status==='승인'&&old&&old.status!=='승인'&&!old.approvalSmsRequestedAt)a.approvalSmsRequestedAt=new Date().toISOString();else if(old?.approvalSmsRequestedAt)a.approvalSmsRequestedAt=old.approvalSmsRequestedAt}};const approvalWarnings=async(before,state)=>{if(!onApproved)return '';const approved=state.apps.filter(a=>a.status==='승인'&&before.apps.some(old=>old.id===a.id&&old.status!=='승인'&&!old.approvalSmsRequestedAt));const warnings=[];for(const a of approved){const c=state.courses.find(c=>c.id===a.courseId);if(!c)continue;try{const warning=await onApproved(a,c);if(warning)warnings.push(warning)}catch{warnings.push(a.name+'님 승인 완료 / 문자 발송 결과 확인 필요: SOLAPI 내역을 확인하세요.')}}return warnings.join('\n')};const authPersistence={read:async()=>{cachedAdmin=await store.call('admin');return cachedAdmin._adminAuth||null},write:record=>serial(async()=>{let latest=cachedAdmin||await store.call('admin');for(let attempt=0;attempt<3;attempt++){const state={courses:latest.courses,apps:latest.apps,instructors:latest.instructors,cancellationHistory:latest.cancellationHistory||[],_adminAuth:record};try{const saved=await store.call('save',{revision:latest.revision,state});cachedAdmin={...state,revision:saved.revision};return}catch(error){if(error.status!==409||attempt===2)throw error;latest=await store.call('admin')}}})};return {store,authPersistence,readForWrite:async()=>cachedAdmin||await store.call('admin'),remember(state){if(!cachedAdmin||state.revision>=cachedAdmin.revision)cachedAdmin=state},invalidate(){cachedAdmin=null},async handle(req,res,url){
  const route=url.pathname;if(!route.startsWith('/api/data/'))return false;
  if(route==='/api/data/status'&&req.method==='GET'){reply(res,200,{configured:store.configured,mode:store.configured?'google-sheets':'browser-local'});return true}
  const isAdmin=['/api/data/admin','/api/data/save','/api/data/reset'].includes(route);

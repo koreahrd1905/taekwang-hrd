@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-function fixture() {
+function fixture({cached=false}={}) {
   let clock = new Date('2026-11-19T14:59:59Z');
   let state = {revision: 1, courses: [
     {id: 'c1', title: '바이브코딩 1차', date: '2026-11-21', capacity: 2},
@@ -15,8 +15,9 @@ function fixture() {
     {id: 'a1', courseId: 'c1', name: '교육생', employeeId: 'E1', phone: '01012345678', company: '회사', department: '팀', email: 'test@example.com', status: '승인', approvalSmsRequestedAt: 'old'},
     {id: 'other', courseId: 'c2', name: '다른사람', employeeId: 'E2', phone: '01022223333', status: '신청완료'}
   ], instructors: [], _adminAuth: {private: true}};
-  let code, invalidations = 0, conflict;
+  let code, invalidations = 0, conflict; const calls=[];
   const store = {async call(action, payload) {
+    calls.push(action);
     if (action === 'admin') return structuredClone(state);
     assert.equal(action, 'save');
     if (conflict) {
@@ -28,7 +29,7 @@ function fixture() {
     return {revision: state.revision};
   }};
   let result;
-  const routes = createLearnerRoutes({store, adminAuth:{authenticated:req=>req.headers['x-test-admin']==='yes'}, now: () => clock, origin: 'https://learning.example',
+  const routes = createLearnerRoutes({store,...(cached?{readForWrite:async()=>structuredClone(state)}:{}), adminAuth:{authenticated:req=>req.headers['x-test-admin']==='yes'}, now: () => clock, origin: 'https://learning.example',
     sendCode: async (_phone, sent) => { code = sent; }, invalidate: () => { invalidations++; },
     reply: (_res, status, body) => {result = {status, body};}});
   const request = async (action, body, extra = {}) => {
@@ -48,7 +49,7 @@ function fixture() {
     assert(!JSON.stringify(verified.body).includes('다른사람'));
     return verified.body.token;
   };
-  return {request, login, store, getState: () => state, setTime: value => {clock = new Date(value);},
+  return {request, login, store, calls, getState: () => state, setTime: value => {clock = new Date(value);},
     conflict: callback => {conflict = callback;}, invalidations: () => invalidations};
 }
 
@@ -206,4 +207,14 @@ test('변경신청 검토 중 정원이 찬 경우 원래 승인과 검토 대�
  assert.equal(f.getState().apps[0].status,'승인');
  assert.equal(f.getState().apps[0].cancellationRequest.state,'pending');
  assert.equal(f.getState().apps.length,2);
+});
+
+
+test('관리자 취소완료는 불러온 버전으로 바로 저장하고 완료 상태를 응답에 포함',async()=>{
+ const f=fixture({cached:true}),token=await f.login();await f.request('cancel',{token,applicationId:'a1'});f.calls.length=0;
+ const result=await f.request('review-cancellation',{applicationId:'a1',decision:'complete'},{'x-test-admin':'yes'});
+ assert.equal(result.status,200);assert.deepEqual(f.calls,['save']);
+ assert.equal(result.body.state.apps[0].status,'취소');
+ assert.equal(result.body.state.cancellationHistory.length,1);
+ assert(!('_adminAuth' in result.body.state));assert.equal(result.body.revision,f.getState().revision);
 });

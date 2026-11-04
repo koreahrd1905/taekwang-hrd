@@ -53,7 +53,7 @@ export function reviewCancellation(latest, applicationId, decision, now = new Da
   return state;
 }
 
-export function createLearnerRoutes({store, reply, sendCode, invalidate = () => {}, adminAuth, origin, now = () => new Date()}) {
+export function createLearnerRoutes({store, reply, sendCode, invalidate = () => {}, adminAuth, readForWrite, remember = () => {}, origin, now = () => new Date()}) {
   const challenges = new Map(), sessions = new Map(), rates = new Map();
   const owns = (identity, application) => application.name.trim() === identity.name &&
     application.employeeId.trim().toLowerCase() === identity.employeeId &&
@@ -125,14 +125,29 @@ export function createLearnerRoutes({store, reply, sendCode, invalidate = () => 
         if (adminAuth?.ensureReady) await adminAuth.ensureReady();
         if (!adminAuth?.authenticated(req)) throw fail('관리자 로그인 후 이용하세요.', 401);
         if (!['complete','reject'].includes(body.decision) || typeof body.applicationId !== 'string') throw fail('처리할 취소신청을 선택하세요.');
+        let latest = readForWrite ? await readForWrite() : await store.call('admin');
+        const responseFor = (record, warning = '') => {
+          const {_adminAuth, ...state} = record;
+          return {ok: true, revision: record.revision, state, warning};
+        };
         for (let attempt = 0; attempt < 4; attempt++) {
-          const latest = await store.call('admin');
           const state = reviewCancellation(latest, body.applicationId, body.decision, now());
-          if (state === latest) { reply(res, 200, {ok: true}); return true; }
+          if (state === latest) { reply(res, 200, responseFor(latest)); return true; }
           try {
-            await store.call('save', {revision: latest.revision, state}); invalidate();
-            reply(res, 200, {ok: true}); return true;
-          } catch (error) { if (error.status !== 409 || attempt === 3) throw error; }
+            const saved = await store.call('save', {revision: latest.revision, state}, {
+              verifySaved: record => {
+                const application = record.apps.find(a => a.id === body.applicationId);
+                return application?.cancellationRequest?.state === (body.decision === 'complete' ? 'completed' : 'rejected') &&
+                  (body.decision !== 'complete' || record.cancellationHistory?.some(a => a.id === body.applicationId));
+              }
+            });
+            const record = saved.recoveredState || {...state, revision: saved.revision};
+            invalidate(); remember(record);
+            reply(res, 200, responseFor(record, saved.warning || '')); return true;
+          } catch (error) {
+            if (error.status !== 409 || attempt === 3) throw error;
+            latest = await store.call('admin');
+          }
         }
       }
       const session = sessions.get(body.token);

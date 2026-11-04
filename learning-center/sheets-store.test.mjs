@@ -79,3 +79,16 @@ test('취소완료 이력은 과정·신청 삭제 병합에도 독립적으로 
  const result=mergeStorageChanges(state,[{collection:'courses',id:'c1',before:state.courses[0],after:null}]);
  assert.equal(result.courses.length,0);assert.equal(result.apps.length,0);assert.deepEqual(result.cancellationHistory,[history]);
 });
+
+
+test('취소완료 저장 응답 JSON이 끊겨도 다른 신청 변경을 보존하며 처리 결과로 복구',async()=>{
+ const state={...initial(),apps:[{id:'a1',courseId:'c1',status:'취소',cancellationRequest:{state:'completed'}}],cancellationHistory:[{id:'a1'}]};
+ const calls=[];
+ const store=createSheetsStore({GOOGLE_SHEETS_WEB_APP_URL:'https://script.google.com/macros/s/test/exec',GOOGLE_SHEETS_SHARED_SECRET:secret},async(_url,options)=>{
+  const request=JSON.parse(Buffer.from(JSON.parse(options.body).body,'base64'));calls.push(request.action);
+  if(request.action==='save')return {ok:true,json:async()=>{throw Error('response body interrupted')}};
+  return Response.json({ok:true,data:{...state,revision:9,apps:[...state.apps,{id:'concurrent',courseId:'c1',status:'신청완료'}]}});
+ });
+ const saved=await store.call('save',{revision:7,state},{verifySaved:record=>record.apps.find(a=>a.id==='a1')?.cancellationRequest?.state==='completed'&&record.cancellationHistory.some(a=>a.id==='a1')});
+ assert.equal(saved.revision,9);assert(saved.recoveredState.apps.some(a=>a.id==='concurrent'));assert.deepEqual(calls,['save','admin']);
+});
