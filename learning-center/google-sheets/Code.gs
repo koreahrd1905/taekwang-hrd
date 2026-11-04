@@ -33,4 +33,33 @@ function validateState_(state){if(!state||!['courses','apps','instructors'].ever
 function public_(record){const s=record.state,counts={};for(const c of s.courses)counts[c.id]=s.apps.filter(a=>a.courseId===c.id&&!['취소','반려'].includes(a.status)).length;return {revision:record.revision,courses:s.courses,instructors:s.instructors.map(i=>Object.fromEntries(['id','name','company','position','education','career','history','books','specialty','photo'].map(key=>[key,i[key]||'']))),counts,totalApplications:s.apps.length,approvedApplications:s.apps.filter(a=>a.status==='승인').length}}
 function apply_(book,record,input){if(!input||!validId_(input.id))error_('신청 식별자가 올바르지 않습니다.',400);const old=record.state.apps.find(a=>a.id===input.id);if(old){if(['courseId','name','employeeId','phone'].some(k=>old[k]!==input[k]))error_('동일 요청 식별자의 내용이 다릅니다.',409);return {applicationId:old.id,status:old.status,duplicateRequest:true}}
  for(const key of ['courseId','name','employeeId','company','department','email','phone'])if(typeof input[key]!=='string'||!input[key].trim())error_('교육신청 필수 정보를 입력하세요.',400);if(!/^010\d{8}$/.test(input.phone)||!/^\S+@\S+\.\S+$/.test(input.email)||Object.values(input).some(value=>typeof value==='string'&&value.length>1000))error_('연락처 또는 신청 내용을 확인하세요.',400);const course=record.state.courses.find(c=>c.id===input.courseId),now=new Date(),today=Utilities.formatDate(now,'Asia/Seoul','yyyy-MM-dd');if(!course||course.closed||course.date<today)error_('신청할 수 없는 교육과정입니다.',409);const active=record.state.apps.filter(a=>a.courseId===course.id&&!['취소','반려'].includes(a.status));if(active.some(a=>a.employeeId.toLowerCase()===input.employeeId.toLowerCase()))error_('해당 사번으로 이미 신청한 과정입니다.',409);if(active.length>=course.capacity)error_('교육 정원이 마감되었습니다.',409);const application=Object.assign({},input,{status:'신청완료',created:today,createdAt:now.toISOString(),createdTime:Utilities.formatDate(now,'Asia/Seoul','HH:mm:ss')});record.state.apps.push(application);commit_(book,record.revision,record.state);return {applicationId:application.id,status:application.status,createdAt:application.createdAt,createdTime:application.createdTime}}
-function doPost(e){let lock;try{const envelope=JSON.parse(e.postData.contents),properties=PropertiesService.getScriptProperties(),secret=properties.getProperty('SHARED_SECRET');if(!secret||secret.length<32)error_('저장소 인증 설정이 필요합니다.',503);if(Math.abs(Date.now()-Number(envelope.timestamp))>300000)error_('요청 유효시간 초과',403);const expected=Utilities.computeHmacSha256Signature(envelope.timestamp+'.'+envelope.body,secret).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join('');if(expected!==envelope.signature)error_('저장소 인증 실패',403);const request=JSON.parse(Utilities.newBlob(Utilities.base64Decode(envelope.body)).getDataAsString('UTF-8'));lock=LockService.getScriptLock();if(!lock.tryLock(20000))error_('다른 신청을 처리 중입니다. 잠시 후 재시도하세요.',503);const book=book_(),record=read_(book);let data;if(request.action==='public')data=public_(record);else if(request.action==='admin')data=Object.assign({revision:record.revision},record.state);else if(request.action==='apply')data=apply_(book,record,request.payload.application);else if(request.action==='save'||request.action==='reset'){if(Number(request.payload.revision)!==record.revision)error_('다른 사용자가 데이터를 변경했습니다. 새로고침 후 다시 저장하세요.',409);data=commit_(book,record.revision,request.action==='reset'?{courses:[],apps:[],instructors:[]}:request.payload.state,record.state,request.payload.compactResponse)}else error_('지원하지 않는 요청',400);return response_({ok:true,data})}catch(error){return response_({ok:false,status:error.status||503,error:error.message||'저장소 오류'})}finally{if(lock)lock.releaseLock()}}
+function doPost(e){
+ let lock=null,lockAcquired=false;
+ try{
+  const envelope=JSON.parse(e.postData.contents),properties=PropertiesService.getScriptProperties(),secret=properties.getProperty('SHARED_SECRET');
+  if(!secret||secret.length<32)error_('저장소 인증 설정이 필요합니다.',503);
+  if(Math.abs(Date.now()-Number(envelope.timestamp))>300000)error_('요청 유효시간 초과',403);
+  const expected=Utilities.computeHmacSha256Signature(envelope.timestamp+'.'+envelope.body,secret).map(b=>('0'+((b+256)%256).toString(16)).slice(-2)).join('');
+  if(expected!==envelope.signature)error_('저장소 인증 실패',403);
+  const request=JSON.parse(Utilities.newBlob(Utilities.base64Decode(envelope.body)).getDataAsString('UTF-8'));
+  const action=request.action,mutating=['apply','save','reset'].includes(action);
+  if(!mutating&&!['public','admin'].includes(action))error_('지원하지 않는 요청',400);
+  // _저장소는 두 행을 번갈아 기록하고 포인터를 마지막에 전환합니다.
+  // 따라서 public/admin 조회는 쓰기 잠금을 기다리지 않아도 완성된 버전을 읽습니다.
+  if(mutating){
+   lock=LockService.getScriptLock();
+   lockAcquired=lock.tryLock(5000);
+   if(!lockAcquired)error_('다른 저장 작업이 진행 중입니다. 잠시 후 다시 시도하세요.',503);
+  }
+  const book=book_(),record=read_(book);let data;
+  if(action==='public')data=public_(record);
+  else if(action==='admin')data=Object.assign({revision:record.revision},record.state);
+  else if(action==='apply')data=apply_(book,record,request.payload.application);
+  else if(action==='save'||action==='reset'){
+   if(Number(request.payload.revision)!==record.revision)error_('다른 사용자가 데이터를 변경했습니다. 새로고침 후 다시 저장하세요.',409);
+   data=commit_(book,record.revision,action==='reset'?{courses:[],apps:[],instructors:[]}:request.payload.state,record.state,request.payload.compactResponse);
+  }
+  return response_({ok:true,data});
+ }catch(error){return response_({ok:false,status:error.status||503,error:error.message||'저장소 오류'})}
+ finally{if(lockAcquired)lock.releaseLock()}
+}
