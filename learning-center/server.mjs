@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {createLearnerRoutes} from './learner-selfservice.mjs';
 import {createStorageRoutes} from './sheets-store.mjs';
 import {createAdminAuth} from './admin-auth.mjs';
 import crypto from 'node:crypto';
@@ -37,12 +38,19 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  const adminAuth=createAdminAuth(dataRoot,env,reply);
  const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply,onApproved:createApprovalNotifier({env,fetcher,ledger,persist})});
  if(storageRoutes.store.configured)adminAuth.setPersistence(storageRoutes.authPersistence);
+ const learnerRoutes=createLearnerRoutes({store:storageRoutes.store,reply,origin:env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).origin:undefined,invalidate:()=>storageRoutes.invalidate(),sendCode:async(phone,code)=>{
+  if(!env.SOLAPI_API_KEY||!env.SOLAPI_API_SECRET||!/^0\d{8,10}$/.test(env.SOLAPI_FROM||''))throw Error('휴대폰 인증 문자 설정을 확인할 수 없습니다. 교육 담당자에게 문의하세요.');
+  const messages=validateMessages([{to:phone,text:'[태광러닝센터] 내 신청 조회 인증번호 ['+code+']를 5분 안에 입력해 주세요.'}],env.SOLAPI_FROM);
+  const response=await fetcher('https://api.solapi.com/messages/v4/send-many/detail',{method:'POST',headers:{'Content-Type':'application/json',Authorization:authHeader(env.SOLAPI_API_KEY,env.SOLAPI_API_SECRET)},body:JSON.stringify({messages,allowDuplicates:true,showMessageList:true}),signal:AbortSignal.timeout(25000)});
+  const data=await response.json();if(!response.ok||data.groupInfo?.count?.registeredSuccess!==1||data.groupInfo?.count?.registeredFailed!==0)throw Error('인증 문자를 보내지 못했습니다. 잠시 후 다시 시도하세요.');
+ }});
  return http.createServer(async(req,res)=>{
  try{
  if(req.method==='GET'&&req.url==='/health'){reply(res,200,{ok:true});return}
  const expectedHost=env.HOST_HEADER||(env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).host:'127.0.0.1:'+String(env.PORT||8787));if(req.headers.host!==expectedHost)return reply(res,403,{error:'허용되지 않은 호스트입니다.'});
  const url=new URL(req.url,'http://'+expectedHost);
  if(await adminAuth.handle(req,res,url.pathname))return;
+ if(await learnerRoutes.handle(req,res,url))return;
  if(await storageRoutes.handle(req,res,url))return;
  if(req.method==='GET'&&url.pathname==='/assets/taekwang-ci.png'){res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400'});fs.createReadStream(path.join(root,'assets','taekwang-ci.png')).pipe(res);return}
  if(req.method==='GET'&&(url.pathname==='/'||url.pathname==='/education_portal_v3_1.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(path.join(root,'education_portal_v3_1.html')).pipe(res);return}

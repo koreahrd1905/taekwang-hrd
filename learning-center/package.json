@@ -8,6 +8,6 @@
   },
   "scripts": {
     "start": "node server.mjs",
-    "test": "node --test server.test.mjs ui.test.mjs sheets-store.test.mjs"
+    "test": "node --test server.test.mjs ui.test.mjs sheets-store.test.mjs learner-selfservice.test.mjs"
   }
 }

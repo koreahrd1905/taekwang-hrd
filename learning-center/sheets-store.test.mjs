@@ -51,3 +51,22 @@ test('과정 첨부만 바꾸면 보기용 모든 시트 접근을 생략하고 
 test('과정명 변경은 해당 신청명단만 갱신하고 다른 과정 명단은 재조회하지 않음',()=>{const {call,sheets}=gas(),state=initial();state.courses.push({...state.courses[0],id:'c2',title:'유지 과정'});call('save',{revision:1,state});const other=Array.from(sheets.values()).find(s=>s.metadata.some(m=>m.value==='c2'));let accesses=0;const get=other.getRange.bind(other);other.getRange=(...args)=>{accesses++;return get(...args)};state.courses[0].title='새 과정명';assert.equal(call('save',{revision:2,state,compactResponse:true}).ok,true);assert.equal(accesses,0);assert(Array.from(sheets.values()).some(s=>s.name==='신청_테스트 과정'));assert.equal(call('admin').data.courses[0].title,'새 과정명')});
 
 test('직접 바꾼 기존·신규 명단 이름은 신규 신청과 과정명 변경·전체 동기화에도 유지',()=>{const {call,sheets}=gas(),state=initial();state.courses[0].capacity=5;call('save',{revision:1,state});const roster=id=>Array.from(sheets.values()).find(s=>s.metadata.some(m=>m.key==='HRD_COURSE_ID'&&m.value===id));const first=roster('c1');first.setName('바이브코딩_1차');const input={id:'manual-name-app',courseId:'c1',name:'검증',employeeId:'E1',company:'회사',department:'팀',email:'test@example.com',phone:'01012345678'};assert.equal(call('apply',{application:input}).ok,true);assert.equal(first.name,'바이브코딩_1차');assert.equal(first.getRange(2,4).getValues()[0][0],'검증');let record=call('admin').data;record.courses.push({...record.courses[0],id:'c2',title:'신규 두번째 과정'});assert.equal(call('save',{revision:record.revision,state:{courses:record.courses,apps:record.apps,instructors:record.instructors}}).ok,true);const second=roster('c2');second.setName('AI자동화_2차');record=call('admin').data;record.courses[1].title='변경한 두번째 과정명';assert.equal(call('save',{revision:record.revision,state:{courses:record.courses,apps:record.apps,instructors:record.instructors}}).ok,true);assert.equal(second.name,'AI자동화_2차');assert.equal(call('apply',{application:{...input,id:'manual-name-new-app',courseId:'c2'}}).ok,true);assert.equal(second.getRange(2,3).getValues()[0][0],'변경한 두번째 과정명');assert.equal(second.getRange(2,4).getValues()[0][0],'검증');assert.equal(first.name,'바이브코딩_1차');assert.equal(second.name,'AI자동화_2차');assert.equal(Array.from(sheets.values()).filter(s=>s.metadata.length).length,2)});
+
+
+test('취소한 신청자는 같은 과정에 다시 신청 가능하며 기존 취소 이력과 정원 집계를 보존',()=>{
+ const {call}=gas();call('save',{revision:1,state:initial()});
+ const application={id:'first',courseId:'c1',name:'교육생',employeeId:'E1',company:'회사',department:'팀',email:'test@example.com',phone:'01012345678'};
+ assert.equal(call('apply',{application}).ok,true);
+ const state=call('admin').data;state.apps[0].status='취소';
+ assert.equal(call('save',{revision:state.revision,state}).ok,true);
+ assert.equal(call('public').data.counts.c1,0);
+ assert.equal(call('apply',{application:{...application,id:'reapplied'}}).ok,true);
+ assert.equal(call('public').data.counts.c1,1);
+ assert.equal(call('admin').data.apps.length,2);
+ assert.equal(call('admin').data.apps[0].status,'취소');
+});
+
+test('공개 신청건수는 취소·반려 이력을 제외한 과정별 유효 인원의 합계',async()=>{
+ const store=createSheetsStore({GOOGLE_SHEETS_WEB_APP_URL:'https://script.google.com/macros/s/test/exec',GOOGLE_SHEETS_SHARED_SECRET:secret},async()=>Response.json({ok:true,data:{counts:{c1:0,c2:2},totalApplications:5}}));
+ assert.equal((await store.call('public')).totalApplications,2);
+});
