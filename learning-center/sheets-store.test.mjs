@@ -70,3 +70,12 @@ test('공개 신청건수는 취소·반려 이력을 제외한 과정별 유효
  const store=createSheetsStore({GOOGLE_SHEETS_WEB_APP_URL:'https://script.google.com/macros/s/test/exec',GOOGLE_SHEETS_SHARED_SECRET:secret},async()=>Response.json({ok:true,data:{counts:{c1:0,c2:2},totalApplications:5}}));
  assert.equal((await store.call('public')).totalApplications,2);
 });
+
+
+test('취소완료 이력은 과정·신청 삭제 병합에도 독립적으로 보존',async()=>{
+ const {mergeStorageChanges}=await import('./sheets-store.mjs');
+ const history={id:'a-old',name:'교육생',courseTitle:'삭제할 과정',completedAt:'2026-11-04T00:00:00Z'};
+ const state={...initial(),apps:[{id:'a-old',courseId:'c1',status:'취소'}],cancellationHistory:[history]};
+ const result=mergeStorageChanges(state,[{collection:'courses',id:'c1',before:state.courses[0],after:null}]);
+ assert.equal(result.courses.length,0);assert.equal(result.apps.length,0);assert.deepEqual(result.cancellationHistory,[history]);
+});

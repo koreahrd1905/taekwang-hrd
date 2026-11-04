@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {createLearnerRoutes, canManageApplication, cancellationDeadline} from './learner-selfservice.mjs';
+import {createLearnerRoutes, canManageApplication, cancellationDeadline, reviewCancellation} from './learner-selfservice.mjs';
 import {createServer} from './server.mjs';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -28,7 +28,7 @@ function fixture() {
     return {revision: state.revision};
   }};
   let result;
-  const routes = createLearnerRoutes({store, now: () => clock, origin: 'https://learning.example',
+  const routes = createLearnerRoutes({store, adminAuth:{authenticated:req=>req.headers['x-test-admin']==='yes'}, now: () => clock, origin: 'https://learning.example',
     sendCode: async (_phone, sent) => { code = sent; }, invalidate: () => { invalidations++; },
     reply: (_res, status, body) => {result = {status, body};}});
   const request = async (action, body, extra = {}) => {
@@ -61,12 +61,13 @@ test('마감은 한국시간 교육일 2일 전 마지막 초까지이며 보관
   assert(!canManageApplication({...c, archived: true}, new Date('2026-11-18')));
 });
 
-test('승인 신청 취소는 인원에서 제외되고 재시도는 중복 저장하지 않음', async () => {
+test('취소신청은 승인 상태와 정원을 유지하고 재요청은 중복 저장하지 않음', async () => {
   const f = fixture(), token = await f.login();
   const result = await f.request('cancel', {token, applicationId: 'a1'});
   assert.equal(result.status, 200);
-  assert.equal(f.getState().apps.find(a => a.id === 'a1').status, '취소');
-  assert.equal(f.getState().apps.filter(a => a.courseId === 'c1' && ['승인','신청완료'].includes(a.status)).length, 0);
+  assert.equal(f.getState().apps.find(a => a.id === 'a1').status, '승인');
+  assert.equal(result.body.applications[0].status,'취소신청');
+  assert.equal(f.getState().apps.filter(a => a.courseId === 'c1' && ['승인','신청완료'].includes(a.status)).length, 1);
   assert.deepEqual(f.getState()._adminAuth, {private: true});
   const revision = f.getState().revision;
   assert.equal((await f.request('cancel', {token, applicationId: 'a1'})).status, 200);
@@ -92,17 +93,20 @@ test('마감일 다음날에는 승인·신청완료 취소와 변경 모두 거
   assert.equal(f.getState().revision, 1);
 });
 
-test('과정 변경은 기존 취소와 새 신청을 한 번에 저장하고 승인·문자 이력을 승계하지 않음', async () => {
+test('과정 변경은 관리자 검토 후 기존 취소와 새 신청을 함께 저장', async () => {
   const f = fixture(), token = await f.login();
   const body = {token, applicationId: 'a1', courseId: 'c2', requestId: 'new-request'};
   assert.equal((await f.request('change', body)).status, 200);
+  assert.equal(f.getState().apps.length,2);
+  assert.equal(f.getState().apps[0].status,'승인');
+  assert.equal((await f.request('review-cancellation',{applicationId:'a1',decision:'complete'},{'x-test-admin':'yes'})).status,200);
   const state = f.getState(), replacement = state.apps.find(a => a.id === 'new-request');
   assert.equal(state.apps.find(a => a.id === 'a1').status, '취소');
   assert.equal(replacement.status, '신청완료');
   assert.equal(replacement.replacesApplicationId, 'a1');
   assert(!replacement.approvalSmsRequestedAt);
   assert.equal((await f.request('change', body)).status, 200);
-  assert.equal(f.getState().revision, 2);
+  assert.equal(f.getState().revision, 3);
   assert.equal(f.getState().apps.length, 3);
 });
 
@@ -163,5 +167,43 @@ test('HTTP 진입점에서 관리자 로그인 없이 SMS 본인 인증과 취�
   const challenge = await call('request-code', {name: '교육생', employeeId: 'E1', phone: '01012345678'});
   const verified = await call('verify', {challengeId: challenge.challengeId, code: sentCode});
   const cancelled = await call('cancel', {token: verified.token, applicationId: 'a1'});
-  assert.equal(cancelled.applications[0].status, '취소');
+  assert.equal(cancelled.applications[0].status, '취소신청');
+  assert.equal(f.getState().apps[0].status,'승인');
+});
+
+
+test('관리자만 최종 취소완료 가능하며 완료 이력을 독립 스냅샷으로 보관',async()=>{
+ const f=fixture(),token=await f.login();await f.request('cancel',{token,applicationId:'a1'});
+ const body={applicationId:'a1',decision:'complete'};
+ assert.equal((await f.request('review-cancellation',body)).status,401);
+ assert.equal((await f.request('review-cancellation',body,{'x-test-admin':'yes'})).status,200);
+ assert.equal(f.getState().apps[0].status,'취소');
+ assert.equal(f.getState().cancellationHistory.length,1);
+ assert.equal(f.getState().cancellationHistory[0].courseTitle,'바이브코딩 1차');
+ assert.equal(f.getState().cancellationHistory[0].cancellationRequest.state,'completed');
+ assert.equal((await f.request('review-cancellation',body,{'x-test-admin':'yes'})).status,200);
+ assert.equal(f.getState().cancellationHistory.length,1);
+});
+
+test('취소신청 반려는 기존 승인·인원을 유지하고 취소완료 이력을 만들지 않음',async()=>{
+ const f=fixture(),token=await f.login();await f.request('cancel',{token,applicationId:'a1'});
+ assert.equal((await f.request('review-cancellation',{applicationId:'a1',decision:'reject'},{'x-test-admin':'yes'})).status,200);
+ assert.equal(f.getState().apps[0].status,'승인');
+ assert.equal(f.getState().apps[0].cancellationRequest.state,'rejected');
+ assert.equal(f.getState().cancellationHistory?.length||0,0);
+});
+
+test('기한 내 접수된 취소신청은 마감일 이후에도 관리자가 완료할 수 있음',async()=>{
+ const f=fixture(),token=await f.login();await f.request('cancel',{token,applicationId:'a1'});
+ f.setTime('2026-11-21T00:00:00Z');
+ assert.equal((await f.request('review-cancellation',{applicationId:'a1',decision:'complete'},{'x-test-admin':'yes'})).status,200);
+});
+
+test('변경신청 검토 중 정원이 찬 경우 원래 승인과 검토 대기를 보존',async()=>{
+ const f=fixture(),token=await f.login();await f.request('change',{token,applicationId:'a1',courseId:'c2',requestId:'new'});
+ f.getState().courses[1].capacity=1;
+ assert.equal((await f.request('review-cancellation',{applicationId:'a1',decision:'complete'},{'x-test-admin':'yes'})).status,409);
+ assert.equal(f.getState().apps[0].status,'승인');
+ assert.equal(f.getState().apps[0].cancellationRequest.state,'pending');
+ assert.equal(f.getState().apps.length,2);
 });

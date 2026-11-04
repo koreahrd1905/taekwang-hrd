@@ -19,7 +19,41 @@ export function canManageApplication(course, now = new Date()) {
     seoulDay(now) <= cancellationDeadline(course));
 }
 
-export function createLearnerRoutes({store, reply, sendCode, invalidate = () => {}, origin, now = () => new Date()}) {
+export function reviewCancellation(latest, applicationId, decision, now = new Date()) {
+  const application = latest.apps.find(a => a.id === applicationId);
+  if (!application) throw Object.assign(Error('신청내역을 찾을 수 없습니다.'), {status: 404});
+  const request = application.cancellationRequest;
+  if (!request) throw Object.assign(Error('취소신청 내역이 없습니다.'), {status: 409});
+  if (request.state === 'completed' && decision === 'complete' || request.state === 'rejected' && decision === 'reject') return latest;
+  if (request.state !== 'pending' || !active(application)) throw Object.assign(Error('이미 처리된 취소신청입니다. 최신 내역을 확인하세요.'), {status: 409});
+  const state = structuredClone(latest), original = state.apps.find(a => a.id === applicationId);
+  original.cancellationRequest.state = decision === 'complete' ? 'completed' : 'rejected';
+  original.cancellationRequest.reviewedAt = now.toISOString();
+  original.cancellationRequest.reviewedBy = 'admin';
+  if (decision === 'reject') return state;
+  if (request.targetCourseId) {
+    const target = state.courses.find(c => c.id === request.targetCourseId);
+    const enrolled = state.apps.filter(a => a.courseId === request.targetCourseId && active(a));
+    if (!target || target.archived || target.closed || target.date < seoulDay(now) || enrolled.length >= target.capacity) {
+      throw Object.assign(Error('변경할 과정이 마감되었습니다. 기존 신청과 취소신청은 유지됩니다.'), {status: 409});
+    }
+    if (enrolled.some(a => a.employeeId.toLowerCase() === application.employeeId.toLowerCase())) {
+      throw Object.assign(Error('변경할 과정에 이미 신청되어 있습니다.'), {status: 409});
+    }
+    if (state.apps.some(a => a.id === request.requestId)) throw Object.assign(Error('변경 신청 식별자가 중복됩니다.'), {status: 409});
+    const replacement = Object.fromEntries(['name','employeeId','company','department','jobGrade','email','phone','reason'].map(key => [key, application[key] || '']));
+    state.apps.push({...replacement, id: request.requestId, courseId: target.id, status: '신청완료',
+      created: seoulDay(now), createdAt: now.toISOString(), createdTime: new Intl.DateTimeFormat('en-GB', {timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now), replacesApplicationId: application.id});
+    original.replacementApplicationId = request.requestId;
+  }
+  original.status = '취소'; original.cancelledAt = now.toISOString(); original.cancelledBy = 'admin';
+  const source = state.courses.find(c => c.id === application.courseId);
+  state.cancellationHistory ||= [];
+  state.cancellationHistory.push({...structuredClone(original), courseTitle: source?.title || application.courseTitle || '삭제된 과정', courseDate: source?.date || '', completedAt: now.toISOString()});
+  return state;
+}
+
+export function createLearnerRoutes({store, reply, sendCode, invalidate = () => {}, adminAuth, origin, now = () => new Date()}) {
   const challenges = new Map(), sessions = new Map(), rates = new Map();
   const owns = (identity, application) => application.name.trim() === identity.name &&
     application.employeeId.trim().toLowerCase() === identity.employeeId &&
@@ -28,8 +62,8 @@ export function createLearnerRoutes({store, reply, sendCode, invalidate = () => 
     const course = state.courses.find(c => c.id === a.courseId);
     return {id: a.id, courseId: a.courseId, title: course?.title || '삭제된 과정',
       date: course?.date || '', startTime: course?.startTime || '', endTime: course?.endTime || '',
-      status: a.status, deadline: cancellationDeadline(course),
-      canManage: active(a) && canManageApplication(course, now())};
+      status: a.status === '취소' ? '취소완료' : a.cancellationRequest?.state === 'pending' ? '취소신청' : a.status, requestKind: a.cancellationRequest?.targetCourseId ? '변경' : '취소', deadline: cancellationDeadline(course),
+      canManage: active(a) && a.cancellationRequest?.state !== 'pending' && canManageApplication(course, now())};
   });
   const prune = () => {
     const time = now().getTime();
@@ -87,6 +121,20 @@ export function createLearnerRoutes({store, reply, sendCode, invalidate = () => 
         reply(res, 200, {token, applications: rows(state, challenge.identity)});
         return true;
       }
+      if (route === 'review-cancellation') {
+        if (adminAuth?.ensureReady) await adminAuth.ensureReady();
+        if (!adminAuth?.authenticated(req)) throw fail('관리자 로그인 후 이용하세요.', 401);
+        if (!['complete','reject'].includes(body.decision) || typeof body.applicationId !== 'string') throw fail('처리할 취소신청을 선택하세요.');
+        for (let attempt = 0; attempt < 4; attempt++) {
+          const latest = await store.call('admin');
+          const state = reviewCancellation(latest, body.applicationId, body.decision, now());
+          if (state === latest) { reply(res, 200, {ok: true}); return true; }
+          try {
+            await store.call('save', {revision: latest.revision, state}); invalidate();
+            reply(res, 200, {ok: true}); return true;
+          } catch (error) { if (error.status !== 409 || attempt === 3) throw error; }
+        }
+      }
       const session = sessions.get(body.token);
       if (!session) throw fail('본인 확인 시간이 만료되었습니다. 다시 인증하세요.', 401);
       if (route === 'list') {
@@ -102,41 +150,24 @@ export function createLearnerRoutes({store, reply, sendCode, invalidate = () => 
         const latest = await store.call('admin');
         const application = latest.apps.find(a => a.id === body.applicationId && owns(session.identity, a));
         if (!application) throw fail('본인의 신청내역을 찾을 수 없습니다.', 404);
-        const existing = latest.apps.find(a => a.id === body.requestId);
-        if (route === 'change' && existing) {
-          if (existing.replacesApplicationId !== application.id || existing.courseId !== body.courseId || !owns(session.identity, existing)) {
-            throw fail('변경 요청 정보가 다릅니다.', 409);
-          }
-          reply(res, 200, {applications: rows(latest, session.identity)});
-          return true;
-        }
-        if (route === 'cancel' && application.status === '취소') {
-          reply(res, 200, {applications: rows(latest, session.identity)});
-          return true;
+        if (application.cancellationRequest?.state === 'pending' || application.status === '취소') {
+          reply(res, 200, {applications: rows(latest, session.identity)}); return true;
         }
         const source = latest.courses.find(c => c.id === application.courseId);
         if (!active(application)) throw fail('신청완료·승인 상태의 신청만 취소하거나 변경할 수 있습니다.', 409);
         if (!canManageApplication(source, now())) throw fail('취소·변경은 교육 시작일 2일 전까지 가능합니다. 교육 담당자에게 문의하세요.', 409);
         const state = structuredClone(latest);
         const original = state.apps.find(a => a.id === application.id);
-        original.status = '취소'; original.cancelledAt = now().toISOString(); original.cancelledBy = 'learner';
+        original.cancellationRequest = {state:'pending', requestedAt: now().toISOString(), previousStatus: application.status};
         if (route === 'change') {
           const target = state.courses.find(c => c.id === body.courseId);
-          if (!target || target.id === source.id || target.closed || !canManageApplication(target, now())) {
-            throw fail('변경할 과정은 모집 중이며 교육 시작일까지 2일 이상 남아 있어야 합니다.', 409);
+          const enrolled = state.apps.filter(a => a.courseId === body.courseId && active(a));
+          if (!target || target.id === source.id || target.closed || !canManageApplication(target, now()) || enrolled.length >= target.capacity) {
+            throw fail('변경할 과정이 마감되었거나 변경 기한이 지났습니다. 기존 신청은 유지됩니다.', 409);
           }
-          const enrolled = state.apps.filter(a => a.courseId === target.id && active(a));
-          if (enrolled.length >= target.capacity) throw fail('변경할 과정의 정원이 마감되었습니다. 기존 신청은 유지됩니다.', 409);
-          if (enrolled.some(a => a.employeeId.toLowerCase() === application.employeeId.toLowerCase())) {
-            throw fail('이미 신청한 과정입니다. 기존 신청은 유지됩니다.', 409);
-          }
-          const replacement = Object.fromEntries(['name','employeeId','company','department','jobGrade','email','phone','reason']
-            .map(key => [key, application[key] || '']));
-          state.apps.push({...replacement, id: body.requestId, courseId: target.id, status: '신청완료',
-            created: seoulDay(now()), createdAt: now().toISOString(),
-            createdTime: new Intl.DateTimeFormat('en-GB', {timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false}).format(now()),
-            replacesApplicationId: application.id});
-          original.replacementApplicationId = body.requestId;
+          if (enrolled.some(a => a.employeeId.toLowerCase() === application.employeeId.toLowerCase())) throw fail('이미 신청한 과정입니다.',409);
+          original.cancellationRequest.targetCourseId = target.id;
+          original.cancellationRequest.requestId = body.requestId;
         }
         try {
           await store.call('save', {revision: latest.revision, state});

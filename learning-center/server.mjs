@@ -38,7 +38,7 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  const adminAuth=createAdminAuth(dataRoot,env,reply);
  const storageRoutes=createStorageRoutes({env,fetcher,adminAuth,reply,onApproved:createApprovalNotifier({env,fetcher,ledger,persist})});
  if(storageRoutes.store.configured)adminAuth.setPersistence(storageRoutes.authPersistence);
- const learnerRoutes=createLearnerRoutes({store:storageRoutes.store,reply,origin:env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).origin:undefined,invalidate:()=>storageRoutes.invalidate(),sendCode:async(phone,code)=>{
+ const learnerRoutes=createLearnerRoutes({store:storageRoutes.store,reply,adminAuth,origin:env.RENDER_EXTERNAL_URL?new URL(env.RENDER_EXTERNAL_URL).origin:undefined,invalidate:()=>storageRoutes.invalidate(),sendCode:async(phone,code)=>{
   if(!env.SOLAPI_API_KEY||!env.SOLAPI_API_SECRET||!/^0\d{8,10}$/.test(env.SOLAPI_FROM||''))throw Error('휴대폰 인증 문자 설정을 확인할 수 없습니다. 교육 담당자에게 문의하세요.');
   const messages=validateMessages([{to:phone,text:'[태광러닝센터] 내 신청 조회 인증번호 ['+code+']를 5분 안에 입력해 주세요.'}],env.SOLAPI_FROM);
   const response=await fetcher('https://api.solapi.com/messages/v4/send-many/detail',{method:'POST',headers:{'Content-Type':'application/json',Authorization:authHeader(env.SOLAPI_API_KEY,env.SOLAPI_API_SECRET)},body:JSON.stringify({messages,allowDuplicates:true,showMessageList:true}),signal:AbortSignal.timeout(25000)});
