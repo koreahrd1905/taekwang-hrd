@@ -89,15 +89,25 @@
 @media(min-width:1280px){
  .workspace.admin-workspace{--admin-gutter:clamp(32px,calc(14.375vw - 152px),124px);padding-left:var(--admin-gutter);padding-right:var(--admin-gutter)}
  #adminView .admin-status-table,#adminView .admin-approvals-table,#adminView .admin-history-table{width:100%}
- #adminView .admin-status-table .status-organization-col{width:calc(20.16cqw + var(--admin-gutter)*0.4032 - 9.6768px)}
+ #adminView .admin-status-table .status-organization-col{width:calc(20.16cqw + var(--admin-gutter)*0.4032 + 30.3232px)}
  #adminView .admin-status-table .status-date-col{width:128px}
- #adminView .admin-status-table .status-name-col{width:90px}
- #adminView .admin-status-table .status-contact-col{width:210px}
+ #adminView .admin-status-table .status-name-col{width:180px}
+ #adminView .admin-status-table .status-contact-col{width:290px}
  #adminView .admin-status-table th:nth-child(n+2):nth-child(-n+5),
  #adminView .admin-status-table td:nth-child(n+2):nth-child(-n+5){padding-left:20px;padding-right:20px}
 }
 @media(min-width:1280px) and (max-width:1599px){
  #adminView .admin-status-table{min-width:1000px}
+}
+
+/* Keep names intact and reserve the actual space around the full contact control. */
+#adminView .admin-status-table th:nth-child(3),#adminView .admin-status-table td:nth-child(3){white-space:nowrap;overflow-wrap:normal}
+@media(min-width:1280px){
+ #adminView .admin-status-table th:nth-child(4),#adminView .admin-status-table td:nth-child(4){padding-right:60px}
+ #adminView .admin-status-table th:nth-child(5),#adminView .admin-status-table td:nth-child(5){padding-left:60px}
+}
+@media(min-width:1280px) and (max-width:1599px){
+ #adminView .admin-status-table{min-width:1200px}
 }
 </style>
 </head>
