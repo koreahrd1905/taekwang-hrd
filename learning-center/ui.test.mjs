@@ -275,3 +275,13 @@ test('취소완료자는 신청현황·승인관리·선택대상에서 제외�
  a.status='승인';a.cancellationRequest={state:'pending'};api.renderStatus();api.renderCancellationRequests();
  assert(api.filteredSmsRows().some(x=>x.id===a.id));assert(node('cancelRequestRows').innerHTML.includes(a.name));
 });
+
+
+test('신청현황 회사정보는 회사·부서·직급만 표시하고 사번 원본은 보존',()=>{
+ const {api,node}=setup();const a=api.apps[0];a.employeeId='EMP-KEEP-0007';a.company='회사확인';a.department='부서확인';a.jobGrade='직급확인';
+ api.courses.find(c=>c.id===a.courseId).title='전체 과정명 확인용 매우 긴 교육과정 제목';api.renderStatus();
+ const cells=[...node('statusRows').innerHTML.matchAll(/<td class="status-organization-cell"[^>]*>(.*?)<\/td>/g)].map(m=>m[1]);
+ assert(cells.includes('회사확인 / 부서확인 / 직급확인'));assert(!cells.join('').includes('EMP-KEEP-0007'));
+ assert(!node('statusRows').innerHTML.includes('EMP-KEEP-0007'));assert.equal(a.employeeId,'EMP-KEEP-0007');
+ assert(node('statusRows').innerHTML.includes('전체 과정명 확인용 매우 긴 교육과정 제목'));
+});
