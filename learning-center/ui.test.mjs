@@ -170,7 +170,7 @@ test('지난교육 완전 삭제 버튼은 연결 신청만 삭제하고 강사�
 
 test('과정 등록·수정 화면에서 준비물 입력칸 제거',()=>{const {api,node}=setup();for(const id of [undefined,'c1']){api.editCourse(id);assert(!node('modalRoot').innerHTML.includes('name="materials"'));assert(!node('modalRoot').innerHTML.includes('<label>준비물</label>'));assert(node('modalRoot').innerHTML.includes('name="notices"'))}});
 
-test('선택 삭제는 취소·승인·반려 모두 삭제하고 숨겨진 선택은 보존',async()=>{for(const status of ['신청완료','승인','반려','취소']){const {api,node}=setup({confirm:()=>true});await Promise.resolve();api.configureSaveTest('local',()=>true);const target=api.apps[0],other=api.apps.find(a=>a.courseId!==target.courseId);target.status=status;node('statusCourseFilter').value=target.courseId;api.smsSelection.add(target.id);api.smsSelection.add(other.id);const before=JSON.parse(JSON.stringify(api.getData()));assert.equal(await api.resetPortalData(),true);const after=api.getData();assert(!after.apps.some(a=>a.id===target.id));assert(after.apps.some(a=>a.id===other.id));assert.equal(after.apps.length,before.apps.length-1);assert.equal(JSON.stringify(after.courses),JSON.stringify(before.courses));assert.equal(JSON.stringify(after.instructors),JSON.stringify(before.instructors))}});
+test('선택 삭제는 현재 신청·승인·반려를 삭제하고 숨겨진 선택은 보존',async()=>{for(const status of ['신청완료','승인','반려']){const {api,node}=setup({confirm:()=>true});await Promise.resolve();api.configureSaveTest('local',()=>true);const target=api.apps[0],other=api.apps.find(a=>a.courseId!==target.courseId);target.status=status;node('statusCourseFilter').value=target.courseId;api.smsSelection.add(target.id);api.smsSelection.add(other.id);const before=JSON.parse(JSON.stringify(api.getData()));assert.equal(await api.resetPortalData(),true);const after=api.getData();assert(!after.apps.some(a=>a.id===target.id));assert(after.apps.some(a=>a.id===other.id));assert.equal(after.apps.length,before.apps.length-1);assert.equal(JSON.stringify(after.courses),JSON.stringify(before.courses));assert.equal(JSON.stringify(after.instructors),JSON.stringify(before.instructors))}});
 test('선택 삭제 저장 실패 시 목록을 되돌리고 선택 유지',async()=>{const {api,context}=setup({confirm:()=>true,alert:()=>{}});await Promise.resolve();api.configureSaveTest('google-sheets',()=>true);api.smsSelection.add(api.apps[0].id);const before=JSON.stringify(api.getData());context.fetch=async()=>new Response(JSON.stringify({error:'mock failure'}),{status:503});assert.equal(await api.resetPortalData(),false);assert.equal(JSON.stringify(api.getData()),before);assert.equal(api.smsSelection.size,1)});
 
 test('팝업 내부에서 시작한 드래그는 배경에서 끝나도 닫히지 않음',()=>{const {api,node}=setup();node('modalRoot').innerHTML='작성 중';api.attachClose();const back=node('modalBack'),input={};back.onpointerdown({target:input,button:0});back.onclick({target:back});assert.equal(node('modalRoot').innerHTML,'작성 중');back.onpointerdown({target:back,button:0});back.onpointercancel();back.onclick({target:back});assert.equal(node('modalRoot').innerHTML,'작성 중');back.onpointerdown({target:back,button:0});back.onclick({target:back});assert.equal(node('modalRoot').innerHTML,'')});
@@ -261,4 +261,17 @@ test('취소완료 응답이 끊긴 후 실제 완료가 확인되면 저장 실
  state={...api.getData(),revision:26,apps:api.getData().apps.map((a,i)=>i===0?{...a,status:'취소',cancellationRequest:{state:'completed'}}:a)};
  await api.reviewCancellationRequest(state.apps[0].id,'complete');
  assert.deepEqual(calls,['/api/learner/review-cancellation','/api/data/admin']);assert.equal(alerts.length,0);assert.equal(api.getData().apps[0].status,'취소');
+});
+
+
+test('취소완료자는 신청현황·승인관리·선택대상에서 제외하되 이력과 원본 보존',()=>{
+ const {api,node}=setup();const a=api.apps[0];a.status='취소';a.cancellationRequest={state:'completed'};
+ api.smsSelection.add(a.id);node('statusCourseFilter').value=a.courseId;api.renderStatus();api.renderAdmin();api.renderCancellationHistory();
+ assert(!api.filteredSmsRows().some(x=>x.id===a.id));
+ assert(!node('statusRows').innerHTML.includes('data-edit-phone="'+a.id+'"'));
+ assert(!node('adminApplicationRows').innerHTML.includes('data-approve-id="'+a.id+'"'));
+ assert(node('cancellationHistoryRows').innerHTML.includes(a.name));
+ assert(api.getData().apps.some(x=>x.id===a.id));assert.equal(node('resetPortalData').disabled,true);
+ a.status='승인';a.cancellationRequest={state:'pending'};api.renderStatus();api.renderCancellationRequests();
+ assert(api.filteredSmsRows().some(x=>x.id===a.id));assert(node('cancelRequestRows').innerHTML.includes(a.name));
 });
