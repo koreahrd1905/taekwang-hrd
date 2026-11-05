@@ -52,6 +52,7 @@ export function createServer({env=process.env,fetcher=fetch,root=ROOT}={}){
  if(await adminAuth.handle(req,res,url.pathname))return;
  if(await learnerRoutes.handle(req,res,url))return;
  if(await storageRoutes.handle(req,res,url))return;
+ if(req.method==='GET'&&url.pathname==='/assets/taekwang-ci.svg'){res.writeHead(200,{'Content-Type':'image/svg+xml','Cache-Control':'public, max-age=86400','X-Content-Type-Options':'nosniff'});fs.createReadStream(path.join(root,'assets','taekwang-ci.svg')).pipe(res);return}
  if(req.method==='GET'&&url.pathname==='/assets/taekwang-ci.png'){res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'public, max-age=86400'});fs.createReadStream(path.join(root,'assets','taekwang-ci.png')).pipe(res);return}
  if(req.method==='GET'&&(url.pathname==='/'||url.pathname==='/education_portal_v3_1.html')){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});fs.createReadStream(path.join(root,'education_portal_v3_1.html')).pipe(res);return}
  if(req.method!=='POST'||url.pathname!=='/api/sms/send')return reply(res,404,{error:'요청 경로를 찾지 못했습니다.'});

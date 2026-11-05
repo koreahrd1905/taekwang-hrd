@@ -26,3 +26,13 @@ test('영구 비밀번호 저장 실패 시 성공 응답·새 로그인 세션�
 
 test('승인 문자 자동 발송은 확정 문구·문의처 사용 및 재호출 중복 차단',async()=>{const {createApprovalNotifier}=await import('./server.mjs');let calls=0;const ledger={},env={SOLAPI_API_KEY:'test',SOLAPI_API_SECRET:'secret',SOLAPI_FROM:'0212345678'};const notify=createApprovalNotifier({env,ledger,persist(){},fetcher:async(url,options)=>{calls++;const body=JSON.parse(options.body);assert(body.messages[0].text.includes('[태광러닝센터 | 교육신청 승인 안내]'));assert(body.messages[0].text.includes('정상 승인 되었습니다.'));assert(body.messages[0].text.includes('교육팀 · 담당자 차장 · 02-1234-5678'));return new Response(JSON.stringify({groupInfo:{groupId:'mock',count:{registeredSuccess:1,registeredFailed:0}}}))}});const a={id:'auto-test',name:'테스트',phone:'01012345678'},c={title:'모의 과정',date:'2099-01-01',startTime:'09:00',endTime:'13:00',place:'교육장',educationContacts:[{company:'교육팀',name:'담당자',position:'차장',phone:'02-1234-5678'}]};assert.equal(await notify(a,c),'');assert.equal(await notify(a,c),'');assert.equal(calls,1)});
 test('승인 문자 통신 오류는 중복 재발송 없이 경고하며 잘못된 번호는 전송 안 함',async()=>{const {createApprovalNotifier}=await import('./server.mjs');let calls=0;const ledger={},notify=createApprovalNotifier({env:{SOLAPI_API_KEY:'test',SOLAPI_API_SECRET:'secret',SOLAPI_FROM:'0212345678'},ledger,persist(){},fetcher:async()=>{calls++;throw Error('mock timeout')}});const c={title:'테스트',date:'2099-01-01'};assert((await notify({id:'bad',name:'모의',phone:'123'},c)).includes('휴대폰'));assert.equal(calls,0);const a={id:'timeout',name:'모의',phone:'01012345678'};assert((await notify(a,c)).includes('불명확'));assert((await notify(a,c)).includes('자동 재발송하지 않습니다'));assert.equal(calls,1)});
+
+test('원본 벡터 로고를 SVG 형식으로 공개 제공하며 래스터 이미지로 변환하지 않음',async t=>{
+ const {base,env}=await harness(t,async()=>{throw Error('외부 발송 없음')});
+ const assets=path.join(path.dirname(env.SMS_LEDGER_FILE),'assets');fs.mkdirSync(assets);
+ fs.copyFileSync(new URL('./assets/taekwang-ci.svg',import.meta.url),path.join(assets,'taekwang-ci.svg'));
+ const response=await fetch(base+'/assets/taekwang-ci.svg');assert.equal(response.status,200);
+ assert.equal(response.headers.get('content-type'),'image/svg+xml');assert.equal(response.headers.get('x-content-type-options'),'nosniff');
+ const svg=await response.text();assert(svg.includes('viewBox="120.264 235.742 601.674 120.113"'));assert(svg.includes('<path'));
+ assert(!/<(?:image|script|foreignObject)\b/i.test(svg));
+});
