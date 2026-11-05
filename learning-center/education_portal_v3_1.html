@@ -340,7 +340,34 @@ function courseGuideModel(c,teacher){
  return {title:c.title||'교육과정',category:c.category||'',schedule:dateSpan(c),time:durationLabel(c),place:c.place||'담당자 문의',capacity:String(c.capacity||'')+'명',target:c.target||'담당자 문의',intro:c.description||'등록된 과정 설명이 없습니다.',goals:c.objectives||'등록된 학습목표가 없습니다.',curriculum:c.curriculum||'세부 교육내용 등록 예정',materials:c.materials||'별도 안내사항 없음',notices:c.notices||'별도 안내사항 없음',teacher:teacher||null,updated:c.updatedAt||'',coordinators:courseEducationContacts(c).map(formatEducationContact).join('\n')||'교육 담당자 문의',contact:courseContactText(c)};
 }
 function wrapGuideText(value,font,size,width){
- const lines=[];for(const raw of String(value||'').replace(/\r/g,'').split('\n')){if(!raw.trim()){lines.push('');continue}let line='';for(const char of Array.from(raw)){const next=line+char;if(font.widthOfTextAtSize(next,size)>width&&line){lines.push(line.trimEnd());line=char.trimStart()}else line=next}lines.push(line.trimEnd())}return lines;
+ const lines=[],fits=text=>font.widthOfTextAtSize(text,size)<=width;
+ for(const raw of String(value||'').replace(/\r/g,'').split('\n')){
+  if(!raw.trim()){lines.push('');continue}let line='';
+  const append=token=>{
+   if(!fits(line+token)&&line){
+    const space=line.lastIndexOf(' '),head=space>0?line.slice(0,space):'';
+    if(head&&font.widthOfTextAtSize(head,size)>=width*.55){lines.push(head.trimEnd());line=line.slice(space+1).trimStart();if(line&&!fits(line+token)){lines.push(line.trimEnd());line=''}}
+    else{lines.push(line.trimEnd());line=''}
+   }
+   line+=(line?token:token.trimStart());
+  };
+  // Keep room numbers, dates, phone numbers and ordinary Latin words together.
+  for(const token of raw.match(/[A-Za-z0-9]+(?:[./:@_+-][A-Za-z0-9]+)*(?:호|층|실|명|시간|분|차|일)?|[^\r\n]/gu)||[]){
+   if(fits(token))append(token);else for(const char of Array.from(token))append(char);
+  }
+  if(line)lines.push(line.trimEnd());
+ }
+ return lines;
+}
+function guideTextLayout(value,font,size,width){
+ const source=String(value||'').replace(/\r/g,'').replace(/[ \t]+(?=[•●▪◦∙][ \t])/g,'\n'),lines=[];
+ for(const raw of source.split('\n')){
+  const text=raw.trim();if(!text){lines.push({text:'',indent:0,prefix:'',gapAfter:0});continue}
+  const bullet=text.match(/^([•●▪◦∙·*\-]|\d{1,2}[.)])\s+(.+)$/),prefix=bullet?(/^[0-9]/.test(bullet[1])?bullet[1]:'•'):'',indent=prefix?Math.max(11,font.widthOfTextAtSize(prefix+' ',size)):0;
+  const wrapped=wrapGuideText(bullet?bullet[2]:text,font,size,width-indent);
+  wrapped.forEach((text,index)=>lines.push({text,indent,prefix:index===0?prefix:'',gapAfter:index===wrapped.length-1&&prefix?2:0}));
+ }
+ return lines;
 }
 function curriculumInkBounds(pixels,width,height){let left=width,top=height,right=-1,bottom=-1;for(let y=0;y<height;y++)for(let x=0;x<width;x++){const i=(y*width+x)*4,a=pixels[i+3]/255;if(a>.02&&Math.min(255-(255-pixels[i])*a,255-(255-pixels[i+1])*a,255-(255-pixels[i+2])*a)<248){left=Math.min(left,x);right=Math.max(right,x);top=Math.min(top,y);bottom=Math.max(bottom,y)}}if(right<left)return null;const pad=8;return {left:Math.max(0,left-pad),top:Math.max(0,top-pad),right:Math.min(width,right+pad+1),bottom:Math.min(height,bottom+pad+1)}}
 async function curriculumPdfBounds(data,indices){
@@ -355,7 +382,7 @@ async function buildCourseGuidePdf(c,teacher,{PDFLib,fontkit,fontBytes,artworkBo
  const palettes={required:{name:'필수교육',primary:[.04,.34,.25],accent:[.08,.5,.37],pale:[.93,.97,.94]},job:{name:'직무맞춤',primary:[.08,.19,.31],accent:[.02,.43,.48],pale:[.93,.97,.98]},ai:{name:'AI교육',primary:[.16,.19,.52],accent:[.36,.25,.74],pale:[.95,.94,.99]}};
  const theme=palettes[themeKey],W=595.28,H=841.89,M=38,CW=W-M*2,BOTTOM=65,navy=rgb(...theme.primary),blue=rgb(...theme.accent),ink=rgb(.12,.17,.24),muted=rgb(.4,.45,.51),lineColor=rgb(.82,.86,.89),light=rgb(...theme.pale);
  let page,y,pageNumber=0,summaryMode=true,coverPage=null,coverTailY=0;const contactLines=wrapGuideText(clean(model.contact),font,9.5,CW-11),contactHeight=23+contactLines.length*14+8;const drawn=[];
- function draw(text,x,baseline,size=10,color=ink){const value=clean(text);page.drawText(value,{x,y:baseline,size,font,color});drawn.push({page:pageNumber,x,y:baseline,size,text:value})}
+ function draw(text,x,baseline,size=10,color=ink){const value=clean(text);page.drawText(value,{x,y:baseline,size,font,color});drawn.push({page:pageNumber,x,y:baseline,size,text:value,width:font.widthOfTextAtSize(value,size)})}
  function newPage(chapter){
   if(summaryMode&&page===coverPage)coverTailY=y;page=doc.addPage([W,H]);pageNumber++;y=H-112;
   page.drawRectangle({x:M,y:H-48,width:themeKey==='required'?5:CW,height:themeKey==='required'?24:3,color:blue});draw('태광러닝센터 · Learning Management System',M+12,H-31,10,navy);draw(chapter,M,H-70,9,muted);
@@ -372,9 +399,10 @@ async function buildCourseGuidePdf(c,teacher,{PDFLib,fontkit,fontBytes,artworkBo
  function title(text){const lines=wrapGuideText(clean(text),font,21,CW);for(const item of lines){ensure(30);draw(item,M,y,21,navy);y-=30}y-=5}
  function heading(text){ensure(48);page.drawRectangle({x:M,y:y-21,width:3,height:21,color:blue});draw(text,M+11,y-15,11,navy);y-=31}
  function paragraph(text,size=10.5,inset=0){
-  if(summaryMode)size=9.5;const lines=wrapGuideText(clean(text),font,size,CW-inset);for(const item of lines){ensure(size*1.5);if(item)draw(item,M+inset,y,size);y-=item?size*1.5:size*.65}y-=8;
+  if(summaryMode)size=9.5;const lines=guideTextLayout(clean(text),font,size,CW-inset);
+  for(const item of lines){const advance=item.text?size*1.55+item.gapAfter:size*.65;ensure(advance);if(item.prefix)draw(item.prefix,M+inset,y,size);if(item.text)draw(item.text,M+inset+item.indent,y,size);y-=advance}y-=8;
  }
- function section(name,text){heading(name);paragraph(text)}
+ function section(name,text){const size=summaryMode?9.5:10.5,items=guideTextLayout(clean(text),font,size,CW),height=31+8+items.reduce((sum,item)=>sum+(item.text?size*1.55+item.gapAfter:size*.65),0);if(height<220)ensure(height);heading(name);paragraph(text)}
  function row(name,value){
   const lines=wrapGuideText(clean(value),font,10.5,CW-105),height=Math.max(30,lines.length*17+14);ensure(Math.min(height,150));
   draw(name,M+10,y-16,10,muted);let first=true;for(const item of lines){if(y-25<BOTTOM){newPage('교육정보 · 계속');draw(name+' (계속)',M+10,y-16,10,muted)}draw(item,M+105,y-16,10.5);y-=17;first=false}y-=12;page.drawLine({start:{x:M,y:y+4},end:{x:W-M,y:y+4},thickness:.5,color:lineColor});
@@ -382,9 +410,14 @@ async function buildCourseGuidePdf(c,teacher,{PDFLib,fontkit,fontBytes,artworkBo
  // 이전 출력물의 제목 → 정보표 → 강사 → 소개 → 목표 순서를 유지합니다.
  newPage('교육과정 안내 · '+theme.name);coverPage=page;title(model.title);
  function gridRow(cells){
-  const widths=cells.length===4?[86,CW/2-86,86,CW/2-86]:[86,CW-86];
-  const hasQr=mapQr&&cells[0]==='교육장소';const wrapped=cells.map((v,i)=>wrapGuideText(clean(v),font,9.5,widths[i]-16-(hasQr&&i===1?74:0)));const height=Math.max(hasQr?76:29,...wrapped.map(v=>v.length*14+12));ensure(height+5);let x=M;
-  cells.forEach((v,i)=>{page.drawRectangle({x,y:y-height,width:widths[i],height,color:i%2===0?light:rgb(1,1,1),borderColor:lineColor,borderWidth:.6});wrapped[i].forEach((t,j)=>draw(t,x+8,y-18-j*14,9.5,i%2===0?blue:ink));x+=widths[i]});if(hasQr){const n=mapQr.getModuleCount(),size=54,unit=size/(n+8),qx=(cells.length===4?M+CW/2:W-M)-65,qy=y-height+17;page.drawRectangle({x:qx,y:qy,width:size,height:size,color:rgb(1,1,1)});for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(mapQr.isDark(r,col))page.drawRectangle({x:qx+(col+4)*unit,y:qy+(n+3-r)*unit,width:unit+.01,height:unit+.01,color:rgb(0,0,0)});draw('약도 보기',qx+7,qy-9,8,muted)}y-=height;
+  const widths=cells.length===4?[70,CW/2-70,70,CW/2-70]:[70,CW-70];
+  const hasQr=mapQr&&cells[0]==='교육장소';
+  const wrapped=cells.map((v,i)=>cells[0]==='교육장소'&&i===3?guideTextLayout(clean(v),font,9.5,widths[i]-16):wrapGuideText(clean(v),font,9.5,widths[i]-16).map(text=>({text,indent:0,prefix:'',gapAfter:0})));
+  const textHeight=items=>items.reduce((sum,item)=>sum+(item.text?14+item.gapAfter:7),0);
+  const height=Math.max(30,...wrapped.map(items=>textHeight(items)+12),hasQr?textHeight(wrapped[1])+86:0);
+  ensure(height+5);let x=M;
+  cells.forEach((v,i)=>{page.drawRectangle({x,y:y-height,width:widths[i],height,color:i%2===0?light:rgb(1,1,1),borderColor:lineColor,borderWidth:.6});let baseline=y-18;for(const item of wrapped[i]){if(item.prefix)draw(item.prefix,x+8,baseline,9.5,i%2===0?blue:ink);if(item.text)draw(item.text,x+8+item.indent,baseline,9.5,i%2===0?blue:ink);baseline-=item.text?14+item.gapAfter:7}x+=widths[i]});
+  if(hasQr){const n=mapQr.getModuleCount(),size=54,unit=size/(n+8),qx=(cells.length===4?M+CW/2:W-M)-65,qy=y-height+17;page.drawRectangle({x:qx,y:qy,width:size,height:size,color:rgb(1,1,1)});for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(mapQr.isDark(r,col))page.drawRectangle({x:qx+(col+4)*unit,y:qy+(n+3-r)*unit,width:unit+.01,height:unit+.01,color:rgb(0,0,0)});draw('약도 보기',qx+7,qy-9,8,muted)}y-=height;
  }
  gridRow(['교육일정',model.schedule,'교육시간',model.time]);gridRow(['교육장소',model.place,'교육대상',model.target]);gridRow(['모집정원',model.capacity,'교육분야',model.category]);gridRow(['교육담당',model.coordinators]);y-=14;
  if(teacher){
