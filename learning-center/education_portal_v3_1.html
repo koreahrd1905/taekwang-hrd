@@ -89,13 +89,17 @@
  #adminView .admin-status-table th,#adminView .admin-status-table td{padding:10px 8px;white-space:nowrap}
  #adminView .admin-status-table .status-check-col{width:32px}
  #adminView .admin-status-table .status-date-col,#adminView .admin-status-table .status-course-date-col{width:104px}
- #adminView .admin-status-table .status-name-col{width:76px}
- #adminView .admin-status-table .status-contact-col{width:164px}
- #adminView .admin-status-table .status-organization-col{width:clamp(210px,15cqw,240px)}
- #adminView .admin-status-table .status-state-col{width:64px}
- #adminView .admin-status-table .status-actions-col{width:92px}
- #adminView .admin-status-table th:nth-child(4),#adminView .admin-status-table td:nth-child(4){padding-right:16px}
- #adminView .admin-status-table th:nth-child(5),#adminView .admin-status-table td:nth-child(5){padding-left:12px}
+ #adminView .admin-status-table .status-name-col{width:72px}
+ #adminView .admin-status-table .status-contact-col{width:150px}
+ #adminView .admin-status-table .status-organization-col{width:clamp(189px,13.5cqw,216px)}
+ #adminView .admin-status-table .status-state-col{width:60px}
+ #adminView .admin-status-table .status-actions-col{width:88px}
+ /* Shrink only the three requested boundaries; retain other columns' inner width. */
+ #adminView .admin-status-table th:nth-child(3),#adminView .admin-status-table td:nth-child(3){padding-right:4px}
+ #adminView .admin-status-table th:nth-child(4),#adminView .admin-status-table td:nth-child(4){padding-left:4px;padding-right:6px}
+ #adminView .admin-status-table th:nth-child(5),#adminView .admin-status-table td:nth-child(5){padding-left:6px}
+ #adminView .admin-status-table th:nth-child(8),#adminView .admin-status-table td:nth-child(8){padding-right:4px}
+ #adminView .admin-status-table th:nth-child(9),#adminView .admin-status-table td:nth-child(9){padding-left:4px}
  #adminView .admin-status-table .status-course-cell,#adminView .admin-status-table .status-organization-cell{white-space:normal;overflow:visible;text-overflow:clip;word-break:keep-all;overflow-wrap:anywhere}
  #adminView .admin-status-table td:last-child{white-space:normal}
 }
