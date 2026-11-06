@@ -294,3 +294,12 @@ test('PDF 줄바꿈은 호실 숫자를 분리하지 않고 글머리 항목마�
  assert.equal(lines.filter(x=>x.prefix).length,3);assert(lines.every(x=>x.indent===20));
  assert(lines.some(x=>!x.prefix&&x.text));assert(lines.every(x=>font.widthOfTextAtSize(x.text,10)+x.indent<=120));
 });
+
+ test('승인 완료 행은 승인 버튼을 숨기고 다른 신청의 승인·반려 기능은 유지',()=>{
+ const {api,node}=setup();const [approved,pending]=api.apps;approved.status='승인';pending.status='신청완료';approved.employeeId='0026000409';api.renderAdmin();
+ const rows=node('adminApplicationRows').innerHTML.split('</tr>');
+ const rowFor=a=>rows.find(row=>row.includes('data-approve-id="'+a.id+'"'));
+ assert(!rowFor(approved).includes('data-value="승인"'));assert(rowFor(approved).includes('data-value="반려"'));
+ assert(rowFor(pending).includes('data-value="승인"'));assert(rowFor(approved).includes('<span>/ 0026000409</span>'));
+ assert(rowFor(approved).includes('class="approval-person-cell"'));assert(rowFor(approved).includes('class="approval-course-cell"'));
+ });
