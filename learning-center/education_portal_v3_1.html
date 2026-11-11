@@ -270,7 +270,7 @@ function outlineMarkup(c){const teacher=instructor(c.instructorId),summary=cours
 
 
 function validMapData(data){return /^data:(?:image\/(?:png|jpeg|webp)|application\/pdf);base64,[A-Za-z0-9+/=]+$/.test(data||'')}
-function courseMapUrl(c){return 'https://taekwang-learning-center.onrender.com/?map='+encodeURIComponent(c.id)}
+function courseMapUrl(c){return 'https://taekwang-learning-center-v2.onrender.com/?map='+encodeURIComponent(c.id)}
 function closeCourseMap(){document.getElementById('courseMapOverlay')?.remove();if(location.search&&/[?&]map=/.test(location.search)){document.documentElement.classList.remove('map-only','map-ready')}}
 function showCourseMap(c){
  closeCourseMap();const overlay=document.createElement('div');overlay.id='courseMapOverlay';overlay.className='map-overlay';
@@ -426,10 +426,10 @@ async function buildCourseGuidePdf(c,teacher,{PDFLib,fontkit,fontBytes,artworkBo
   const hasQr=mapQr&&cells[0]==='교육장소';
   const wrapped=cells.map((v,i)=>cells[0]==='교육장소'&&i===3?guideTextLayout(clean(v),font,9.5,widths[i]-16):wrapGuideText(clean(v),font,9.5,widths[i]-16).map(text=>({text,indent:0,prefix:'',gapAfter:0})));
   const textHeight=items=>items.reduce((sum,item)=>sum+(item.text?14+item.gapAfter:7),0);
-  const height=Math.max(30,...wrapped.map(items=>textHeight(items)+12),hasQr?textHeight(wrapped[1])+86:0);
+  const height=Math.max(30,...wrapped.map(items=>textHeight(items)+12),hasQr?textHeight(wrapped[1])*2+86:0);
   ensure(height+5);let x=M;
   cells.forEach((v,i)=>{page.drawRectangle({x,y:y-height,width:widths[i],height,color:i%2===0?light:rgb(1,1,1),borderColor:lineColor,borderWidth:.6});let baseline=y-18;for(const item of wrapped[i]){if(item.prefix)draw(item.prefix,x+8,baseline,9.5,i%2===0?blue:ink);if(item.text)draw(item.text,x+8+item.indent,baseline,9.5,i%2===0?blue:ink);baseline-=item.text?14+item.gapAfter:7}x+=widths[i]});
-  if(hasQr){const n=mapQr.getModuleCount(),size=54,unit=size/(n+8),qx=(cells.length===4?M+CW/2:W-M)-65,qy=y-height+17;page.drawRectangle({x:qx,y:qy,width:size,height:size,color:rgb(1,1,1)});for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(mapQr.isDark(r,col))page.drawRectangle({x:qx+(col+4)*unit,y:qy+(n+3-r)*unit,width:unit+.01,height:unit+.01,color:rgb(0,0,0)});draw('약도 보기',qx+7,qy-9,8,muted)}y-=height;
+  if(hasQr){const n=mapQr.getModuleCount(),size=54,unit=size/(n+8),centerX=M+widths[0]+widths[1]/2,qx=centerX-size/2,qy=y-height/2-size/2+5.5;page.drawRectangle({x:qx,y:qy,width:size,height:size,color:rgb(1,1,1)});for(let r=0;r<n;r++)for(let col=0;col<n;col++)if(mapQr.isDark(r,col))page.drawRectangle({x:qx+(col+4)*unit,y:qy+(n+3-r)*unit,width:unit+.01,height:unit+.01,color:rgb(0,0,0)});draw('약도 보기',centerX-font.widthOfTextAtSize('약도 보기',8)/2,qy-9,8,muted)}y-=height;
  }
  gridRow(['교육일정',model.schedule,'교육시간',model.time]);gridRow(['교육장소',model.place,'교육대상',model.target]);gridRow(['모집정원',model.capacity,'교육분야',model.category]);gridRow(['교육담당',model.coordinators]);y-=14;
  if(teacher){
