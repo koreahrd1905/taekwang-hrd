@@ -186,6 +186,33 @@ test('회차 콤보 전환은 과정명·날짜·시간·정원을 보존하고 
 test('기존 회차를 콤보로 편집해도 ID·첨부·각 회차 신청 연결 보존',()=>{const {api}=setup();const first={id:'session-a',title:'교육 · 1차',baseTitle:'교육',sessionGroupId:'group1',sessionNumber:1,date:'2099-01-01',endDate:'2099-01-01',startTime:'09:00',endTime:'13:00',capacity:20},second={...first,id:'session-b',title:'교육 · 2차',sessionNumber:2,curriculumArtwork:'keep-second',place:'별도 교육장'};api.courses.push(first,second);const entries=api.courseSessionEntries(first);entries[1].schedule.startTime='13:00';entries[1].schedule.endTime='17:00';const saved=api.buildSessionEditorItems({...first,title:'교육',updatedAt:'now'},entries,first);assert.equal(saved[0].id,'session-a');assert.equal(saved[1].id,'session-b');assert.equal(saved[1].curriculumArtwork,'keep-second');assert.equal(saved[1].place,'별도 교육장');assert.equal(saved[1].startTime,'13:00');assert.equal(saved[1].title,'교육 · 2차')});
 test('기존 회차별 과정명을 수정해도 신청 연결과 다른 회차 첨부를 보존',()=>{const {api}=setup();const first={id:'session-a',title:'바이브코딩 · 1차',baseTitle:'바이브코딩',sessionGroupId:'group2',sessionNumber:1,date:'2099-01-01',endDate:'2099-01-01',startTime:'09:00',endTime:'13:00',capacity:20},second={...first,id:'session-b',title:'파이썬 · 2차',baseTitle:'파이썬',sessionNumber:2,curriculumArtwork:'python-pdf',place:'파이썬 강의실'};api.courses.push(first,second);const entries=api.courseSessionEntries(first);entries[1].title='파이썬 실습';const saved=api.buildSessionEditorItems({...first,title:'바이브코딩',updatedAt:'now'},entries,first);assert.equal(saved[0].title,'바이브코딩 · 1차');assert.equal(saved[1].title,'파이썬 실습 · 2차');assert.equal(saved[1].baseTitle,'파이썬 실습');assert.equal(saved[1].id,'session-b');assert.equal(saved[1].curriculumArtwork,'python-pdf');assert.equal(saved[1].place,'파이썬 강의실');assert.throws(()=>api.buildSessionEditorItems({...first,title:'바이브코딩'},[{...entries[0],title:' '},entries[1]],first),/1차 과정명/)});
 test('승인 관리에서 선택한 신청자만 일괄 승인하고 정원·다른 상태를 보존',async()=>{const {api,node}=setup({confirm:()=>true,alert:()=>{}});api.configureSaveTest('local',()=>true);api.setAdminState(true);const [first,second,third]=api.apps;first.status='신청완료';second.status='반려';third.status='취소';api.adminApprovalSelection.add(first.id);api.adminApprovalSelection.add(second.id);api.renderAdmin();assert(node('adminApplicationRows').innerHTML.includes('data-approve-id'));assert(node('approveSelectedApplications').textContent.includes('2건'));assert.equal(await api.approveSelectedApplications(),true);assert.equal(api.getData().apps.find(a=>a.id===first.id).status,'승인');assert.equal(api.getData().apps.find(a=>a.id===second.id).status,'승인');assert.equal(api.getData().apps.find(a=>a.id===third.id).status,'취소');assert.equal(api.adminApprovalSelection.size,0)});
+test('승인 관리 과정 필터는 표시와 전체 선택·일괄 승인 범위를 제한한다',async()=>{
+ const {api,node}=setup({confirm:()=>true,alert:()=>{}});
+ api.configureSaveTest('local',()=>true);
+ api.setAdminState(true);
+ const first=api.apps[0],other=api.apps.find(a=>a.courseId!==first.courseId);
+ assert.notEqual(first.courseId,other.courseId);
+ for(const c of api.courses){c.date='2099-11-21';c.endDate='2099-11-21'}
+ first.status=other.status='신청완료';
+ api.renderAdmin();
+ const filter=node('approvalCourseFilter');
+ assert(filter.innerHTML.includes('value="'+first.courseId+'"'));
+ api.adminApprovalSelection.add(other.id);
+ filter.value=first.courseId;
+ filter.onchange();
+ assert.equal(api.adminApprovalSelection.size,0);
+ const table=node('adminApplicationRows');
+ assert(table.innerHTML.includes('data-approve-id="'+first.id+'"'));
+ assert(!table.innerHTML.includes('data-approve-id="'+other.id+'"'));
+ node('approveSelectAll').onchange({target:{checked:true}});
+ assert(api.adminApprovalSelection.has(first.id));
+ assert(!api.adminApprovalSelection.has(other.id));
+ api.adminApprovalSelection.add(other.id);
+ assert.equal(await api.approveSelectedApplications(),true);
+ assert.equal(api.getData().apps.find(a=>a.id===first.id).status,'승인');
+ assert.equal(api.getData().apps.find(a=>a.id===other.id).status,'신청완료');
+ assert.equal(filter.value,first.courseId);
+});
 test('일괄 승인 정원 초과·확인 취소 시 상태 유지',async()=>{let confirmed=false,alerted='';const {api}=setup({confirm:()=>confirmed,alert:message=>{alerted=message}});api.configureSaveTest('local',()=>true);api.setAdminState(true);const first=api.apps[0],c=api.courses.find(c=>c.id===first.courseId);first.status='반려';api.adminApprovalSelection.add(first.id);c.capacity=api.apps.filter(a=>a.courseId===c.id&&!['취소','반려'].includes(a.status)).length;assert.equal(await api.approveSelectedApplications(),false);assert.match(alerted,/잔여 정원/);assert.equal(first.status,'반려');c.capacity=30;assert.equal(await api.approveSelectedApplications(),false);assert.equal(first.status,'반려')});
 test('엑셀 통합문서는 한글·사번 앞자리 0을 텍스트로 보존',()=>{const {api}=setup();const zip=api.xlsxBytes([['성명','사번','휴대폰'],['강현석','0012345','01012345678']]);assert.equal(new DataView(zip.buffer).getUint32(0,true),0x04034b50);let offset=0,worksheet='';while(offset<zip.length&&new DataView(zip.buffer,offset).getUint32(0,true)===0x04034b50){const view=new DataView(zip.buffer,offset),size=view.getUint32(18,true),nameLength=view.getUint16(26,true),extra=view.getUint16(28,true),start=offset+30+nameLength+extra,name=new TextDecoder().decode(zip.subarray(offset+30,offset+30+nameLength));if(name==='xl/worksheets/sheet1.xml')worksheet=new TextDecoder().decode(zip.subarray(start,start+size));offset=start+size}assert.match(worksheet,/<t xml:space="preserve">강현석<\/t>/);assert.match(worksheet,/<t xml:space="preserve">0012345<\/t>/);assert.match(worksheet,/<t xml:space="preserve">01012345678<\/t>/);assert(html.includes('Excel 다운로드'));assert(html.includes("+today()+'.xlsx'"))});
 test('한 회차만 수정할 때 다른 회차의 수정시각과 저장 변경 목록은 유지',()=>{const {api}=setup();const a={id:'a',title:'바이브코딩 · 1차',baseTitle:'바이브코딩',sessionGroupId:'g1',sessionNumber:1,date:'2099-01-01',endDate:'2099-01-01',startTime:'09:00',endTime:'13:00',capacity:20,closed:false,updatedAt:'old-a'},b={...a,id:'b',title:'파이썬 · 2차',baseTitle:'파이썬',sessionNumber:2,updatedAt:'old-b'};api.courses.push(a,b);const entries=api.courseSessionEntries(a),saved=api.buildSessionEditorItems({...a,title:'바이브코딩 · 1차',description:'변경',updatedAt:'new'},entries,a);assert.equal(saved[1].updatedAt,'old-b');assert.equal(saved[1].title,b.title);const changes=api.storageChanges({courses:[a,b],apps:[],instructors:[]},{courses:saved,apps:[],instructors:[]});assert.equal(changes.length,1);assert.equal(changes[0].id,'a')});
