@@ -4,6 +4,31 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const html=fs.readFileSync(new URL('./education_portal_v3_1.html',import.meta.url),'utf8');
 function setup(overrides={}){const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',innerHTML:'',textContent:'',style:{},childNodes:[],scrollTop:0,replaceChildren(...children){this.childNodes=children},querySelector(){return node(id+'_modal')},elements:new Proxy({namedItem:name=>node(id+'_'+name)},{get:(target,key)=>key in target?target[key]:node(id+'_'+String(key))}),classList:{toggle(){},add(){},remove(){}},addEventListener(){},focus(){},isConnected:true});return nodes.get(id)};const storage=new Map();const context={document:{getElementById:node,querySelectorAll:()=>[],addEventListener(){}},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},window:{scrollTo(){}},setTimeout,clearTimeout,setInterval,clearInterval,console,location:{protocol:'file:'},crypto:globalThis.crypto,TextEncoder,TextDecoder,Event,AbortSignal,...overrides};vm.createContext(context);let script=html.match(/<script>([\s\S]*?)<\/script>/)[1];script=script.replace(/\}\)\(\);\s*$/,'globalThis.smsTest={courseDescriptionMarkup,cancellationDate,guideTextLayout,reviewCancellationRequest,withLearnerProgress,applicationStatus,renderCancellationHistory,renderCancellationRequests,refreshSharedOnNavigation,courseFormSnapshot,courseFormHasUnsavedChanges,requestCloseModal,xlsxBytes,adminApprovalSelection,approveSelectedApplications,refreshAdminApprovalSelection,courseSessionEntries,buildSessionEditorItems,attachCourseSessions,buildCourseSessionItems,courseSessionSchedule,attachClose,openSmsComposer,cancelApplications,refreshSmsSelection,renderAdmin,deleteCourseWithApplications,setCourseArchived,editInstructor,pdfPhotoCandidates,showInstructorPhotoCandidates,applyCapturedPhoto,compactStoredImage,compactSaveImages,curriculumInkBounds,render,isPastCourse,renderArchive,showArchivedApplications,storageChanges,safeSave,useSharedState,resizeCourseTextarea,attachCourseAutoGrow,courseEducationContacts,courseContactText,educationContactsMarkup,readEducationContacts,curriculumDownloadName,showCourseMap,fitCurriculumPrintPdf,attachCurriculumFullscreen,configureApplyTest:()=>{storageMode="google-sheets";adminAuthenticated=false},artworkPageIndices,initializeSharedStorage,savePortalState,configureSaveTest:(mode,reauth)=>{storageMode=mode;adminAuthenticated=true;reauthenticateForSave=reauth},validMapData,courseMapUrl,readMapFile,courseGuideModel,wrapGuideText,buildCourseGuidePdf,openCourseGuide,renderCourses,parseProfile,profileParts,packProfileParts,profilePdfCandidates,courseCurriculumMarkup,analyzeCourseMaterial,coursePdfTableLines,selectCoursePages,smsText,validMobile,normalizeMobile,filteredSmsRows,smsSelection,apps,courses,SMS_TEMPLATES,renderStatus,showCourseDetail,showCourseInstructor,outlineMarkup,courseOutlineSummary,summarizeOutlineText,editCourse,instructors,adminAction,openAdminLogin,nav,resetPortalData,openInstructorFromCourse,editInstructorFromCourse,closeModal,refreshCourseInstructor,parseCourseMaterial,applyCourseMaterial,readCourseMaterial,coursePdfLines,getData:()=>({courses,apps,instructors}),getAdminState:()=>adminAuthenticated,setAdminState:value=>{adminAuthenticated=value}};})();');vm.runInContext(script,context);return {api:context.smsTest,node,context}}
+test('상태 요약은 과정별로 갱신하고 검색과 상태 필터의 영향을 받지 않는다',()=>{
+ const {api,node}=setup();
+ const first=api.apps[0],other=api.apps.find(a=>a.courseId!==first.courseId);
+ const same=api.apps.find(a=>a!==first&&a.courseId===first.courseId);
+ for(const c of api.courses){c.date='2099-11-21';c.endDate=c.date}
+ first.status='승인';
+ same.status='반려';
+ other.status='승인';
+ other.cancellationRequest={state:'pending'};
+ api.renderStatus();
+ const summary=()=>node('statusSummary').innerHTML;
+ assert.match(summary(),/취소신청 <strong>1명/);
+ node('statusCourseFilter').value=first.courseId;
+ node('statusFilter').value='승인';
+ node('statusSearch').value='검색 결과 없음';
+ api.renderStatus();
+ assert.match(summary(),/승인 <strong>1명/);
+ assert.match(summary(),/반려 <strong>1명/);
+ assert.match(summary(),/취소신청 <strong>0명/);
+ assert.equal(api.filteredSmsRows().length,0);
+ node('statusCourseFilter').value=other.courseId;
+ api.renderStatus();
+ assert.match(summary(),/승인 <strong>0명/);
+ assert.match(summary(),/취소신청 <strong>1명/);
+});
 test('포털 초기화, 휴대폰 검증과 양식 치환',()=>{const {api,node}=setup();assert(api.validMobile('010-1234-5678'));assert(!api.validMobile('123'));assert(html.includes('id="phone"'));assert(node('statusRows').innerHTML.includes('연락처 수정'));const a=api.apps[0];const result=api.smsText(api.SMS_TEMPLATES.confirm,a,'인사교육팀 / 내선 1234','필기도구');assert(result.includes(a.name));assert(result.includes('생성형 AI'));assert(result.includes('신청이 정상 승인 되었습니다.'));assert(!/\{[^{}]+\}/.test(result));assert(result.includes('내선 1234'))});
 test('전체·선택 대상은 현재 검색과 상태 필터 기준',()=>{const {api,node}=setup();assert.equal(api.filteredSmsRows().length,3);node('statusFilter').value='승인';assert.equal(api.filteredSmsRows().length,1);node('statusFilter').value='';node('statusSearch').value='김예시';assert.equal(api.filteredSmsRows().length,1);api.smsSelection.add('a1');assert.equal(api.filteredSmsRows().filter(a=>api.smsSelection.has(a.id)).length,0);api.smsSelection.add('a2');assert.equal(api.filteredSmsRows().filter(a=>api.smsSelection.has(a.id)).length,1)});
 
