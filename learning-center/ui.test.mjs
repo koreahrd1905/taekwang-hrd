@@ -8,22 +8,34 @@ test('상태 요약은 과정별로 갱신하고 검색과 상태 필터의 영�
  const {api,node}=setup();
  const first=api.apps[0],other=api.apps.find(a=>a.courseId!==first.courseId);
  const same=api.apps.find(a=>a!==first&&a.courseId===first.courseId);
- for(const c of api.courses){c.date='2099-11-21';c.endDate=c.date}
+ for(const c of api.courses){c.date='2099-11-21';c.endDate=c.date;c.capacity=0}
+ const firstCourse=api.courses.find(c=>c.id===first.courseId);
+ firstCourse.capacity=35;
+ api.courses.find(c=>c.id===other.courseId).capacity='42';
  first.status='승인';
  same.status='반려';
  other.status='승인';
  other.cancellationRequest={state:'pending'};
  api.renderStatus();
  const summary=()=>node('statusSummary').innerHTML;
+ assert.match(summary(),/^<span[^>]*>정원 <strong>77명/);
  assert.match(summary(),/취소신청 <strong>1명/);
  node('statusCourseFilter').value=first.courseId;
  node('statusFilter').value='승인';
  node('statusSearch').value='검색 결과 없음';
  api.renderStatus();
  assert.match(summary(),/승인 <strong>1명/);
+ assert.match(summary(),/정원 <strong>35명/);
  assert.match(summary(),/반려 <strong>1명/);
  assert.match(summary(),/취소신청 <strong>0명/);
  assert.equal(api.filteredSmsRows().length,0);
+ node('statusCourseFilter').value=other.courseId;
+ api.renderStatus();
+ assert.match(summary(),/정원 <strong>42명/);
+ firstCourse.capacity=36;
+ node('statusCourseFilter').value=first.courseId;
+ api.renderStatus();
+ assert.match(summary(),/정원 <strong>36명/);
  node('statusCourseFilter').value=other.courseId;
  api.renderStatus();
  assert.match(summary(),/승인 <strong>0명/);
